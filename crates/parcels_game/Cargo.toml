@@ -1,0 +1,17 @@
+[package]
+name = "parcels_game"
+description = "Bevy client for Parcels: rendering, input, UI, audio."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "parcels"
+path = "src/main.rs"
+
+[dependencies]
+parcels_sim.workspace = true
+parcels_net.workspace = true
+bevy = { workspace = true, features = ["wav"] }
+bevy_egui.workspace = true
+ron.workspace = true

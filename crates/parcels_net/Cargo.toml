@@ -1,0 +1,17 @@
+[package]
+name = "parcels_net"
+description = "Lockstep command relay for Parcels over renet. No Bevy; usable by a headless server."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+parcels_sim.workspace = true
+serde.workspace = true
+postcard.workspace = true
+renet.workspace = true
+renet_netcode.workspace = true
+
+[[bin]]
+name = "parcels-server"
+path = "src/bin/server.rs"

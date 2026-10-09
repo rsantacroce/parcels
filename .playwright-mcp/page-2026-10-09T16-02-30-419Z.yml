@@ -1,0 +1,119 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link [ref=e4] [cursor=pointer]:
+        - /url: ./
+      - navigation [ref=e10]:
+        - link "Manual" [ref=e11] [cursor=pointer]:
+          - /url: manual.html
+        - link "Assets" [ref=e12] [cursor=pointer]:
+          - /url: assets.html
+        - link "GitHub" [ref=e13] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - heading "One shared map. Separate budgets." [level=1] [ref=e16]: One shared map.Separate budgets.
+      - paragraph [ref=e17]: Parcels is a 3D city builder for friends and rivals. Each player owns a parcel of the map and runs its own treasury, but roads, power and water cross every border. Trade with your neighbours, outgrow them, or both.
+      - generic [ref=e18]:
+        - link "Download v 0.2.0" [ref=e19] [cursor=pointer]:
+          - /url: "#download"
+          - text: Download v
+          - generic [ref=e20]: 0.2.0
+        - link "Read the manual" [ref=e21] [cursor=pointer]:
+          - /url: manual.html
+      - paragraph [ref=e22]: Free and open source · Windows, macOS, Linux · single-player, hot-seat and LAN multiplayer
+      - link [ref=e24]:
+        - /url: img/title.jpg
+        - img "The Parcels title screen in front of a grown AI city with towers, wind turbines and streets" [ref=e25]
+    - generic [ref=e27]:
+      - heading "How it plays" [level=2] [ref=e28]
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - heading "Your parcel, your money" [level=3] [ref=e31]
+          - paragraph [ref=e32]: Zone residential, commercial, industrial and office land. Buildings grow by themselves when they have roads, power, water and the services they need.
+        - generic [ref=e33]:
+          - heading "Neighbours you can't ignore" [level=3] [ref=e34]
+          - paragraph [ref=e35]: Networks cross parcel borders. Sell surplus power and water at your own price, and watch a neighbour's coal plant drag down your land value.
+        - generic [ref=e36]:
+          - heading "A city that comes alive" [level=3] [ref=e37]
+          - paragraph [ref=e38]:
+            - text: Day and night, lit windows, cars, buses and people on the streets. Press
+            - generic [ref=e39]: V
+            - text: and walk your city at street level.
+        - generic [ref=e40]:
+          - heading "Play together" [level=3] [ref=e41]
+          - paragraph [ref=e42]: Solo against AI neighbours, hot-seat on one screen, or host a game on your network. A deterministic simulation keeps everyone in sync.
+    - generic [ref=e44]:
+      - heading "Screenshots" [level=2] [ref=e45]
+      - generic [ref=e46]:
+        - 'figure "Year ten: four neighbourhoods grown into one skyline, with the side panel tracking your parcel''s budget, power and water trade." [ref=e47]':
+          - link [ref=e49]:
+            - /url: img/city.jpg
+            - img "A dense city in year ten with apartment towers, terraces, factories and a river, and the in-game side panel" [ref=e50]
+        - figure "Dusk. Windows light up across towers and terraces." [ref=e52]:
+          - link [ref=e54]:
+            - /url: img/dusk.jpg
+            - img "The same city at dusk with lit windows" [ref=e55]
+        - 'figure "Street view: walk, run or fly through what you built." [ref=e57]':
+          - link [ref=e59]:
+            - /url: img/street.jpg
+            - img "Street-level view down a road lined with houses, power poles and a factory in the distance" [ref=e60]
+        - figure "Night over the river district." [ref=e62]:
+          - link [ref=e64]:
+            - /url: img/night.jpg
+            - img "The city at night" [ref=e65]
+        - 'figure "New game: map size, rivers, lakes, neighbours, game length, with a live preview." [ref=e67]':
+          - link [ref=e69]:
+            - /url: img/newgame.jpg
+            - img "The new game screen with a map preview" [ref=e70]
+    - generic [ref=e73]:
+      - heading "Download" [level=2] [ref=e74]
+      - paragraph [ref=e75]:
+        - text: Unpack the archive and run
+        - code [ref=e76]: parcels
+        - text: from inside its folder. All builds are on the
+        - link "release page" [ref=e77] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels/releases/latest
+        - text: .
+      - generic [ref=e78]:
+        - generic [ref=e79]:
+          - heading "Windows" [level=3] [ref=e80]
+          - paragraph [ref=e81]: 64-bit, Windows 10 or later.
+          - link "Download .zip" [ref=e82] [cursor=pointer]:
+            - /url: https://github.com/rsantacroce/parcels/releases/latest
+        - generic [ref=e83]:
+          - heading "macOS" [level=3] [ref=e84]
+          - paragraph [ref=e85]:
+            - text: "Apple Silicon. Unsigned: run"
+            - code [ref=e86]: xattr -dr com.apple.quarantine parcels-*
+            - text: once.
+          - link "Download .tar.gz" [ref=e87] [cursor=pointer]:
+            - /url: https://github.com/rsantacroce/parcels/releases/latest
+        - generic [ref=e88]:
+          - heading "Linux" [level=3] [ref=e89]
+          - paragraph [ref=e90]: x86_64 with Vulkan; needs ALSA and udev.
+          - link "Download .tar.gz" [ref=e91] [cursor=pointer]:
+            - /url: https://github.com/rsantacroce/parcels/releases/latest
+        - generic [ref=e92]:
+          - heading "From source" [level=3] [ref=e93]
+          - paragraph [ref=e94]: "Rust stable, then:"
+          - code [ref=e96]: cargo run --release --bin parcels
+    - generic [ref=e98]:
+      - heading "Make it look better" [level=2] [ref=e99]
+      - paragraph [ref=e100]:
+        - text: Everything in the world is drawn from code today. The
+        - link "asset list" [ref=e101] [cursor=pointer]:
+          - /url: assets.html
+        - text: has every building, vehicle and prop the game could use as a real 3D model, with sizes and a ready-to-paste prompt for Meshy's text-to-3D. Generate one, send it back, and it can go into a future release.
+  - contentinfo [ref=e102]:
+    - generic [ref=e103]:
+      - generic [ref=e104]: Parcels · MIT or Apache-2.0 · made with Rust and Bevy
+      - generic [ref=e105]:
+        - link "Source" [ref=e106] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels
+        - text: ·
+        - link "Releases" [ref=e107] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels/releases
+        - text: ·
+        - link "Issues" [ref=e108] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels/issues

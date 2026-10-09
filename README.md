@@ -84,6 +84,12 @@ The world is drawn procedurally today. [`assets/`](assets/README.md) lists every
 through the Meshy API (`MESHY_API_KEY`), and `--readme` rebuilds the list from
 `assets/catalog.json`.
 
+## Website data
+
+`cargo run -p parcels_sim --example pedia --release > ../parcels-site/pedia.json`
+exports every item and balance constant for the website's Parcelspedia. Rerun it
+whenever `config/balance.ron` or the building catalog changes.
+
 ## Releasing
 
 Push a `v*` tag. `.github/workflows/release.yml` builds Windows, macOS and Linux

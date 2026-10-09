@@ -1,0 +1,4 @@
+[      62ms] TypeError: Cannot set property dataset of #<HTMLElement> which has only a getter
+    at Object.assign (<anonymous>)
+    at el (http://localhost:8765/pedia.html:220:65)
+    at http://localhost:8765/pedia.html:286:17

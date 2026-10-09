@@ -1,0 +1,117 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - link [ref=f1e4] [cursor=pointer]:
+        - /url: ./
+      - navigation [ref=f1e10]:
+        - link "Manual" [ref=f1e11] [cursor=pointer]:
+          - /url: manual.html
+        - link "Assets" [ref=f1e12] [cursor=pointer]:
+          - /url: assets.html
+        - link "GitHub" [ref=f1e13] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels
+  - main [ref=f1e14]:
+    - generic [ref=f1e15]:
+      - heading "One shared map. Separate budgets." [level=1] [ref=f1e16]: One shared map.Separate budgets.
+      - paragraph [ref=f1e17]: Parcels is a 3D city builder for friends and rivals. Each player owns a parcel of the map and runs its own treasury, but roads, power and water cross every border. Trade with your neighbours, outgrow them, or both.
+      - generic [ref=f1e18]:
+        - link "Download v0.2.0" [ref=f1e19] [cursor=pointer]:
+          - /url: "#download"
+        - link "Read the manual" [ref=f1e21] [cursor=pointer]:
+          - /url: manual.html
+      - paragraph [ref=f1e22]: Free and open source · Windows, macOS, Linux · single-player, hot-seat and LAN multiplayer
+      - link [ref=f1e24]:
+        - /url: img/title.jpg
+        - img "The Parcels title screen in front of a grown AI city with towers, wind turbines and streets" [ref=f1e25]
+    - generic [ref=f1e27]:
+      - heading "How it plays" [level=2] [ref=f1e28]
+      - generic [ref=f1e29]:
+        - generic [ref=f1e30]:
+          - heading "Your parcel, your money" [level=3] [ref=f1e31]
+          - paragraph [ref=f1e32]: Zone residential, commercial, industrial and office land. Buildings grow by themselves when they have roads, power, water and the services they need.
+        - generic [ref=f1e33]:
+          - heading "Neighbours you can't ignore" [level=3] [ref=f1e34]
+          - paragraph [ref=f1e35]: Networks cross parcel borders. Sell surplus power and water at your own price, and watch a neighbour's coal plant drag down your land value.
+        - generic [ref=f1e36]:
+          - heading "A city that comes alive" [level=3] [ref=f1e37]
+          - paragraph [ref=f1e38]:
+            - text: Day and night, lit windows, cars, buses and people on the streets. Press
+            - generic [ref=f1e39]: V
+            - text: and walk your city at street level.
+        - generic [ref=f1e40]:
+          - heading "Play together" [level=3] [ref=f1e41]
+          - paragraph [ref=f1e42]: Solo against AI neighbours, hot-seat on one screen, or host a game on your network. A deterministic simulation keeps everyone in sync.
+    - generic [ref=f1e44]:
+      - heading "Screenshots" [level=2] [ref=f1e45]
+      - generic [ref=f1e46]:
+        - 'figure "Year ten: four neighbourhoods grown into one skyline, with the side panel tracking your parcel''s budget, power and water trade." [ref=f1e47]':
+          - link [ref=f1e49]:
+            - /url: img/city.jpg
+            - img "A dense city in year ten with apartment towers, terraces, factories and a river, and the in-game side panel" [ref=f1e50]
+        - figure "Dusk. Windows light up across towers and terraces." [ref=f1e52]:
+          - link [ref=f1e54]:
+            - /url: img/dusk.jpg
+            - img "The same city at dusk with lit windows" [ref=f1e55]
+        - 'figure "Street view: walk, run or fly through what you built." [ref=f1e57]':
+          - link [ref=f1e59]:
+            - /url: img/street.jpg
+            - img "Street-level view down a road lined with houses, power poles and a factory in the distance" [ref=f1e60]
+        - figure "Night over the river district." [ref=f1e62]:
+          - link [ref=f1e64]:
+            - /url: img/night.jpg
+            - img "The city at night" [ref=f1e65]
+        - 'figure "New game: map size, rivers, lakes, neighbours, game length, with a live preview." [ref=f1e67]':
+          - link [ref=f1e69]:
+            - /url: img/newgame.jpg
+            - img "The new game screen with a map preview" [ref=f1e70]
+    - generic [ref=f1e73]:
+      - heading "Download" [level=2] [ref=f1e74]
+      - paragraph [ref=f1e75]:
+        - text: Unpack the archive and run
+        - code [ref=f1e76]: parcels
+        - text: from inside its folder. All builds are on the
+        - link "release page" [ref=f1e77] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels/releases/latest
+        - text: .
+      - generic [ref=f1e78]:
+        - generic [ref=f1e79]:
+          - heading "Windows" [level=3] [ref=f1e80]
+          - paragraph [ref=f1e81]: 64-bit, Windows 10 or later.
+          - link "Download .zip" [ref=f1e82] [cursor=pointer]:
+            - /url: https://github.com/rsantacroce/parcels/releases/latest/download/parcels-windows-x86_64.zip
+        - generic [ref=f1e83]:
+          - heading "macOS" [level=3] [ref=f1e84]
+          - paragraph [ref=f1e85]:
+            - text: "Apple Silicon. Unsigned: run"
+            - code [ref=f1e86]: xattr -dr com.apple.quarantine parcels-*
+            - text: once.
+          - link "Download .tar.gz" [ref=f1e87] [cursor=pointer]:
+            - /url: https://github.com/rsantacroce/parcels/releases/latest/download/parcels-macos-arm64.tar.gz
+        - generic [ref=f1e88]:
+          - heading "Linux" [level=3] [ref=f1e89]
+          - paragraph [ref=f1e90]: x86_64 with Vulkan; needs ALSA and udev.
+          - link "Download .tar.gz" [ref=f1e91] [cursor=pointer]:
+            - /url: https://github.com/rsantacroce/parcels/releases/latest/download/parcels-linux-x86_64.tar.gz
+        - generic [ref=f1e92]:
+          - heading "From source" [level=3] [ref=f1e93]
+          - paragraph [ref=f1e94]: "Rust stable, then:"
+          - code [ref=f1e96]: cargo run --release --bin parcels
+    - generic [ref=f1e98]:
+      - heading "Make it look better" [level=2] [ref=f1e99]
+      - paragraph [ref=f1e100]:
+        - text: Everything in the world is drawn from code today. The
+        - link "asset list" [ref=f1e101] [cursor=pointer]:
+          - /url: assets.html
+        - text: has every building, vehicle and prop the game could use as a real 3D model, with sizes and a ready-to-paste prompt for Meshy's text-to-3D. Generate one, send it back, and it can go into a future release.
+  - contentinfo [ref=f1e102]:
+    - generic [ref=f1e103]:
+      - generic [ref=f1e104]: Parcels · MIT or Apache-2.0 · made with Rust and Bevy
+      - generic [ref=f1e105]:
+        - link "Source" [ref=f1e106] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels
+        - text: ·
+        - link "Releases" [ref=f1e107] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels/releases
+        - text: ·
+        - link "Issues" [ref=f1e108] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels/issues

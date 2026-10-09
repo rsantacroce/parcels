@@ -1,0 +1,1705 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - link [ref=f1e4] [cursor=pointer]:
+        - /url: ./
+      - navigation [ref=f1e10]:
+        - link "Manual" [ref=f1e11] [cursor=pointer]:
+          - /url: manual.html
+        - link "Parcelspedia" [ref=f1e12] [cursor=pointer]:
+          - /url: pedia.html
+        - link "Assets" [ref=f1e13] [cursor=pointer]:
+          - /url: assets.html
+        - link "GitHub" [ref=f1e14] [cursor=pointer]:
+          - /url: https://github.com/rsantacroce/parcels
+  - generic [ref=f1e15]:
+    - navigation "Contents" [ref=f1e16]:
+      - heading "How it works" [level=4] [ref=f1e17]
+      - link "A game tick" [ref=f1e18] [cursor=pointer]:
+        - /url: "#tick"
+      - link "Taxes" [ref=f1e19] [cursor=pointer]:
+        - /url: "#taxes"
+      - link "Revenue calculator" [ref=f1e20] [cursor=pointer]:
+        - /url: "#calculator"
+      - link "Upkeep" [ref=f1e21] [cursor=pointer]:
+        - /url: "#upkeep"
+      - link "Power and water trade" [ref=f1e22] [cursor=pointer]:
+        - /url: "#trade"
+      - link "Score and winning" [ref=f1e23] [cursor=pointer]:
+        - /url: "#score"
+      - link "Demand" [ref=f1e24] [cursor=pointer]:
+        - /url: "#demand"
+      - link "Growth" [ref=f1e25] [cursor=pointer]:
+        - /url: "#growth"
+      - link "Land value" [ref=f1e26] [cursor=pointer]:
+        - /url: "#landvalue"
+      - link "Pollution, traffic, crime, fire" [ref=f1e27] [cursor=pointer]:
+        - /url: "#effects"
+      - heading "Items" [level=4] [ref=f1e28]
+      - link "Zones" [ref=f1e29] [cursor=pointer]:
+        - /url: "#zones"
+      - generic [ref=f1e30]:
+        - link "Residential" [ref=f1e31] [cursor=pointer]:
+          - /url: "#zone-residential"
+        - link "Commercial" [ref=f1e32] [cursor=pointer]:
+          - /url: "#zone-commercial"
+        - link "Industrial" [ref=f1e33] [cursor=pointer]:
+          - /url: "#zone-industrial"
+        - link "Office" [ref=f1e34] [cursor=pointer]:
+          - /url: "#zone-office"
+      - link "Roads and networks" [ref=f1e35] [cursor=pointer]:
+        - /url: "#networks"
+      - generic [ref=f1e36]:
+        - link "Power" [ref=f1e37] [cursor=pointer]:
+          - /url: "#cat-power"
+        - generic [ref=f1e38]:
+          - link "Coal plant" [ref=f1e39] [cursor=pointer]:
+            - /url: "#b-coalplant"
+          - link "Gas plant" [ref=f1e40] [cursor=pointer]:
+            - /url: "#b-gasplant"
+          - link "Wind turbine" [ref=f1e41] [cursor=pointer]:
+            - /url: "#b-windturbine"
+          - link "Solar farm" [ref=f1e42] [cursor=pointer]:
+            - /url: "#b-solarfarm"
+          - link "Nuclear plant" [ref=f1e43] [cursor=pointer]:
+            - /url: "#b-nuclearplant"
+        - link "Water" [ref=f1e44] [cursor=pointer]:
+          - /url: "#cat-water"
+        - generic [ref=f1e45]:
+          - link "Water pump" [ref=f1e46] [cursor=pointer]:
+            - /url: "#b-waterpump"
+          - link "Water tower" [ref=f1e47] [cursor=pointer]:
+            - /url: "#b-watertower"
+          - link "Water treatment" [ref=f1e48] [cursor=pointer]:
+            - /url: "#b-watertreatment"
+        - link "Services" [ref=f1e49] [cursor=pointer]:
+          - /url: "#cat-services"
+        - generic [ref=f1e50]:
+          - link "Police station" [ref=f1e51] [cursor=pointer]:
+            - /url: "#b-policestation"
+          - link "Fire station" [ref=f1e52] [cursor=pointer]:
+            - /url: "#b-firestation"
+          - link "Clinic" [ref=f1e53] [cursor=pointer]:
+            - /url: "#b-clinic"
+          - link "Hospital" [ref=f1e54] [cursor=pointer]:
+            - /url: "#b-hospital"
+          - link "School" [ref=f1e55] [cursor=pointer]:
+            - /url: "#b-school"
+          - link "University" [ref=f1e56] [cursor=pointer]:
+            - /url: "#b-university"
+        - link "Parks" [ref=f1e57] [cursor=pointer]:
+          - /url: "#cat-parks"
+        - generic [ref=f1e58]:
+          - link "Park" [ref=f1e59] [cursor=pointer]:
+            - /url: "#b-park"
+          - link "Plaza" [ref=f1e60] [cursor=pointer]:
+            - /url: "#b-plaza"
+          - link "Playground" [ref=f1e61] [cursor=pointer]:
+            - /url: "#b-playground"
+          - link "Sports field" [ref=f1e62] [cursor=pointer]:
+            - /url: "#b-sportsfield"
+          - link "Stadium" [ref=f1e63] [cursor=pointer]:
+            - /url: "#b-stadium"
+        - link "Landmarks" [ref=f1e64] [cursor=pointer]:
+          - /url: "#cat-landmarks"
+        - generic [ref=f1e65]:
+          - link "Town hall" [ref=f1e66] [cursor=pointer]:
+            - /url: "#b-townhall"
+          - link "Monument" [ref=f1e67] [cursor=pointer]:
+            - /url: "#b-monument"
+          - link "Airport" [ref=f1e68] [cursor=pointer]:
+            - /url: "#b-airport"
+      - heading "Reference" [level=4] [ref=f1e69]
+      - link "All balance constants" [ref=f1e70] [cursor=pointer]:
+        - /url: "#constants"
+    - article [ref=f1e71]:
+      - heading "Parcelspedia" [level=1] [ref=f1e72]
+      - paragraph [ref=f1e73]:
+        - text: Every item in the game and how the money actually moves. All numbers come from the game's
+        - code [ref=f1e74]: config/balance.ron
+        - text: (version 0.2.0), exported by
+        - code [ref=f1e75]: cargo run -p parcels_sim --example pedia
+        - text: ", so they match what you play."
+      - paragraph [ref=f1e76]: Money is shown in dollars. The sim counts in cents per tick; a month is 30 ticks.
+      - searchbox "Search the Parcelspedia" [ref=f1e78]
+      - generic [ref=f1e79]:
+        - heading "A game tick" [level=2] [ref=f1e80]
+        - paragraph [ref=f1e81]: "Every tick runs six stages in order, identically on every machine:"
+        - list [ref=f1e82]:
+          - listitem [ref=f1e83]: "Commands: everything players and the AI asked for is applied, sorted by author and sequence."
+          - listitem [ref=f1e84]: "Utilities: power and water networks are flood-filled across parcel borders. Each owner uses their own supply first, then buys from the cheapest neighbour selling. Power is settled before water, because pumps need power."
+          - listitem [ref=f1e85]: "Demand: map-wide residential, commercial, industrial and office demand, shifted per player by their tax rate."
+          - listitem [ref=f1e86]: "Growth: every eligible zone tile on the map competes for one shared pool of newcomers."
+          - listitem [ref=f1e87]: "Land value: service coverage, traffic, pollution and crime are recomputed and land value moves toward its target."
+          - listitem [ref=f1e88]: "Economy: taxes in, upkeep out, trades paid, treasury clamped at the debt floor, scores updated."
+        - paragraph [ref=f1e89]: The game lasts 10 years (3,600 ticks) by default.
+      - generic [ref=f1e90]:
+        - heading "Taxes" [level=2] [ref=f1e91]
+        - paragraph [ref=f1e92]: "Every powered, occupied zone tile you own pays tax every tick:"
+        - generic [ref=f1e93]: tax per tick (¢) = occupants × land value × tax rate % ÷ 1,500tax per month = tax per tick × 30
+        - list [ref=f1e94]:
+          - listitem [ref=f1e95]:
+            - text: Occupants = level × people (or jobs) per level of that zone. See
+            - link "Zones" [ref=f1e96] [cursor=pointer]:
+              - /url: "#zones"
+            - text: .
+          - listitem [ref=f1e97]: "Industry is taxed at base land value (200) wherever it stands: factories don't care about the view. Every other zone pays on its tile's actual land value."
+          - listitem [ref=f1e98]: Unpowered tiles pay nothing.
+          - listitem [ref=f1e99]:
+            - text: Tax rate runs from 0 to 20%, default 7%. Each point above 7% cuts your demand (see
+            - link "Demand" [ref=f1e100] [cursor=pointer]:
+              - /url: "#demand"
+            - text: ), each point below raises it.
+        - paragraph [ref=f1e101]:
+          - text: "A useful rule of thumb at 7%:"
+          - generic [ref=f1e102]: each occupant pays $0.14 a month per 100 points of land value.
+      - generic [ref=f1e103]:
+        - heading "Revenue calculator" [level=2] [ref=f1e104]
+        - generic [ref=f1e105]:
+          - generic [ref=f1e106]:
+            - generic [ref=f1e107]:
+              - text: Zone
+              - combobox "Zone" [ref=f1e108]:
+                - option "Residential" [selected]
+                - option "Commercial"
+                - option "Industrial"
+                - option "Office"
+            - generic [ref=f1e109]:
+              - text: Level
+              - combobox "Level" [ref=f1e110]:
+                - option "1" [selected]
+                - option "2"
+                - option "3"
+                - option "4 (dense)"
+                - option "5 (dense)"
+                - option "6 (dense)"
+            - generic [ref=f1e111]:
+              - text: Land value (0–1000)
+              - spinbutton "Land value (0–1000)" [ref=f1e112]: "500"
+            - generic [ref=f1e113]:
+              - text: Tax rate %
+              - spinbutton "Tax rate %" [ref=f1e114]: "7"
+            - generic [ref=f1e115]:
+              - text: Tiles
+              - spinbutton "Tiles" [ref=f1e116]: "1"
+            - generic [ref=f1e117]:
+              - generic [ref=f1e118]: Tax per month
+              - status [ref=f1e119]: $8.40
+          - paragraph [ref=f1e120]: "1 × 12 residents on land value 500. Needs road ≤2, power. Neutral tax rate: no demand change."
+      - generic [ref=f1e121]:
+        - heading "Upkeep" [level=2] [ref=f1e122]
+        - paragraph [ref=f1e123]: Paid every tick for everything you have built on your parcel. Zones themselves cost nothing to keep.
+        - table [ref=f1e125]:
+          - rowgroup [ref=f1e126]:
+            - row [ref=f1e127]:
+              - columnheader "Item" [ref=f1e128]
+              - columnheader "Per tick" [ref=f1e129]
+              - columnheader "Per month" [ref=f1e130]
+          - row [ref=f1e131]:
+            - cell "Street (per tile)" [ref=f1e132]
+            - cell "$0.01" [ref=f1e133]
+            - cell "$0.30" [ref=f1e134]
+          - row [ref=f1e135]:
+            - cell "Avenue (per tile)" [ref=f1e136]
+            - cell "$0.02" [ref=f1e137]
+            - cell "$0.60" [ref=f1e138]
+          - row [ref=f1e139]:
+            - cell "Power line (per tile)" [ref=f1e140]
+            - cell "$0.01" [ref=f1e141]
+            - cell "$0.30" [ref=f1e142]
+          - row [ref=f1e143]:
+            - cell "Water pipe (per tile)" [ref=f1e144]
+            - cell "$0.01" [ref=f1e145]
+            - cell "$0.30" [ref=f1e146]
+        - paragraph [ref=f1e147]: Bridges (roads on water) cost double upkeep. Each placed building's upkeep is listed on its entry below.
+      - generic [ref=f1e148]:
+        - heading "Power and water trade" [level=2] [ref=f1e149]
+        - paragraph [ref=f1e150]: "Networks ignore parcel borders. Within one connected network, every owner first covers their own demand from their own plants, pumps and towers. Owners who are still short buy from neighbours who have ticked Sell surplus, cheapest price first. The buyer pays the seller every tick:"
+        - generic [ref=f1e151]: trade per tick (¢) = units bought × seller's price (¢ per unit per tick)
+        - list [ref=f1e152]:
+          - listitem [ref=f1e153]: The AI offers at 4¢ per unit per tick. At that price, one unit sold all month earns $1.20.
+          - listitem [ref=f1e154]: "Power use: a zone tile needs 1 + its level; a building needs its listed power draw."
+          - listitem [ref=f1e155]: "Water use: a zone tile needs its level (empty lots need none). Levels above 1 won't grow without water."
+          - listitem [ref=f1e156]: Water producers make nothing without power. Pumps and treatment plants that touch the river get their river bonus.
+      - generic [ref=f1e157]:
+        - heading "Score and winning" [level=2] [ref=f1e158]
+        - generic [ref=f1e159]: score = treasury + (sum of land value of every tile on your parcel) × 20¢
+        - paragraph [ref=f1e160]:
+          - text: So each point of land value anywhere on your parcel is worth
+          - generic [ref=f1e161]: $0.20
+          - text: of score, as much as cash. A 32×24 parcel at an average land value of 400 is worth
+          - generic [ref=f1e162]: $61,440
+          - text: . The highest score when time runs out wins.
+        - paragraph [ref=f1e163]:
+          - text: Your treasury starts at
+          - generic [ref=f1e164]: $20,000
+          - text: . Spending needs cash in hand. Upkeep can push you below zero, but never below
+          - generic [ref=f1e165]: −$5,000
+          - text: .
+      - generic [ref=f1e166]:
+        - heading "Demand" [level=2] [ref=f1e167]
+        - paragraph [ref=f1e168]: "Workers, jobs and shoppers move freely across the map, so raw demand is computed for the whole map and then normalised to −1000…1000:"
+        - generic [ref=f1e169]: region = 100% + 30% per game year R = 80×region + bonuses + (all jobs incl. public) × 130/100 − residents C = 20×region + bonuses + residents × 100/300 − commercial jobs I = 80×region + bonuses + residents × 100/220 − industrial jobs O = 10×region + bonuses + residents × 100/450 − office jobs bar = raw × 1000 ÷ (current size + 100 for R, + 50 for C/I/O)
+        - paragraph [ref=f1e170]:
+          - text: Your own bars are the map-wide bars minus
+          - generic [ref=f1e171]: (your tax − 7) × 4 × 10
+          - text: . At 10% tax you lose 120 points on every bar; at 4% you gain 120. Bonuses come from powered landmarks (stadium, town hall, airport); see their entries.
+        - paragraph [ref=f1e172]: If your demand for a zone falls below −500, occupied tiles of that zone start leaving even when they are well served.
+      - generic [ref=f1e173]:
+        - heading "Growth" [level=2] [ref=f1e174]
+        - paragraph [ref=f1e175]: "Each tick, up to 4 tiles per zone type, across the whole map, move up or down a level. Which ones is decided by competition:"
+        - generic [ref=f1e176]: growth score = land value + your demand ÷ 4 + random 0…60
+        - list [ref=f1e177]:
+          - listitem [ref=f1e178]: Only tiles that are sustained (powered, a road within 2 tiles, and watered if above level 1) and whose owner has positive demand can grow. The highest scores win, so cheap land loses newcomers to valuable land, including your neighbour's.
+          - listitem [ref=f1e179]: When map demand is negative, the lowest-scoring occupied tiles shrink first.
+          - listitem [ref=f1e180]: A tile that isn't sustained loses a level with a 4% chance each tick.
+        - heading "What each level needs" [level=3] [ref=f1e181]
+        - table [ref=f1e183]:
+          - row [ref=f1e184]:
+            - columnheader "Level" [ref=f1e185]
+            - columnheader "Residential" [ref=f1e186]
+            - columnheader "Commercial" [ref=f1e187]
+            - columnheader "Industrial" [ref=f1e188]
+            - columnheader "Office" [ref=f1e189]
+          - row [ref=f1e190]:
+            - cell "1" [ref=f1e191]
+            - cell "road ≤2, power" [ref=f1e192]
+            - cell "road ≤2, power" [ref=f1e193]
+            - cell "road ≤2, power" [ref=f1e194]
+            - cell "road ≤2, power" [ref=f1e195]
+          - row [ref=f1e196]:
+            - cell "2" [ref=f1e197]
+            - cell "road ≤2, power, water" [ref=f1e198]
+            - cell "road ≤2, power, water" [ref=f1e199]
+            - cell "road ≤2, power, water" [ref=f1e200]
+            - cell "road ≤2, power, water, school/university" [ref=f1e201]
+          - row [ref=f1e202]:
+            - cell "3" [ref=f1e203]
+            - cell "road ≤2, power, water, school/university" [ref=f1e204]
+            - cell "road ≤2, power, water" [ref=f1e205]
+            - cell "road ≤2, power, water" [ref=f1e206]
+            - cell "road ≤2, power, water, school/university" [ref=f1e207]
+          - row [ref=f1e208]:
+            - cell "Dense 4" [ref=f1e209]
+            - cell "road ≤2, power, water, land value ≥ 380, school/university" [ref=f1e210]
+            - cell "road ≤2, power, water, land value ≥ 380" [ref=f1e211]
+            - cell "road ≤2, power, water, land value ≥ 380" [ref=f1e212]
+            - cell "road ≤2, power, water, land value ≥ 380, school/university" [ref=f1e213]
+          - row [ref=f1e214]:
+            - cell "Dense 5" [ref=f1e215]
+            - cell "road ≤2, power, water, land value ≥ 380, school/university, clinic/hospital" [ref=f1e216]
+            - cell "road ≤2, power, water, land value ≥ 380, clinic/hospital" [ref=f1e217]
+            - cell "road ≤2, power, water, land value ≥ 380, clinic/hospital" [ref=f1e218]
+            - cell "road ≤2, power, water, land value ≥ 380, school/university, clinic/hospital" [ref=f1e219]
+          - row [ref=f1e220]:
+            - cell "Dense 6" [ref=f1e221]
+            - cell "road ≤2, power, water, land value ≥ 380, school/university, clinic/hospital" [ref=f1e222]
+            - cell "road ≤2, power, water, land value ≥ 380, clinic/hospital" [ref=f1e223]
+            - cell "road ≤2, power, water, land value ≥ 380, clinic/hospital" [ref=f1e224]
+            - cell "road ≤2, power, water, land value ≥ 380, school/university, clinic/hospital" [ref=f1e225]
+      - generic [ref=f1e226]:
+        - heading "Land value" [level=2] [ref=f1e227]
+        - paragraph [ref=f1e228]: "Every tile has a land value from 0 to 1,000. Each tick it moves 1/6 of the way toward a target:"
+        - table [ref=f1e230]:
+          - rowgroup [ref=f1e231]:
+            - row [ref=f1e232]:
+              - columnheader "Effect" [ref=f1e233]
+              - columnheader "Points" [ref=f1e234]
+              - columnheader "Notes" [ref=f1e235]
+          - row [ref=f1e236]:
+            - cell "Base" [ref=f1e237]
+            - cell "+200" [ref=f1e238]
+            - cell "every tile starts here" [ref=f1e239]
+          - row [ref=f1e240]:
+            - cell "Parks, services, landmarks" [ref=f1e241]
+            - cell "up to +400" [ref=f1e242]
+            - cell "each building's bonus and radius (only while powered, if it uses power)" [ref=f1e243]
+          - row [ref=f1e244]:
+            - cell "River or lake" [ref=f1e245]
+            - cell "up to +120" [ref=f1e246]
+            - cell "within 3 tiles" [ref=f1e247]
+          - row [ref=f1e248]:
+            - cell "Woodland" [ref=f1e249]
+            - cell "up to +50" [ref=f1e250]
+            - cell "within 2 tiles; nature is capped at 120 total" [ref=f1e251]
+          - row [ref=f1e252]:
+            - cell "Shops" [ref=f1e253]
+            - cell "up to +120" [ref=f1e254]
+            - cell "40 per occupied commercial tile within 3" [ref=f1e255]
+          - row [ref=f1e256]:
+            - cell "Road on or next to the tile" [ref=f1e257]
+            - cell "+60" [ref=f1e258]
+            - cell [ref=f1e259]
+          - row [ref=f1e260]:
+            - cell "Powered" [ref=f1e261]
+            - cell "+60" [ref=f1e262]
+            - cell [ref=f1e263]
+          - row [ref=f1e264]:
+            - cell "Watered" [ref=f1e265]
+            - cell "+60" [ref=f1e266]
+            - cell [ref=f1e267]
+          - row [ref=f1e268]:
+            - cell "Health coverage" [ref=f1e269]
+            - cell "+30" [ref=f1e270]
+            - cell "clinic or hospital" [ref=f1e271]
+          - row [ref=f1e272]:
+            - cell "Education coverage" [ref=f1e273]
+            - cell "+30" [ref=f1e274]
+            - cell "school or university" [ref=f1e275]
+          - row [ref=f1e276]:
+            - cell "Industrial zone tile" [ref=f1e277]
+            - cell "−100" [ref=f1e278]
+            - cell "on the factory's own tile" [ref=f1e279]
+          - row [ref=f1e280]:
+            - cell "Pollution" [ref=f1e281]
+            - cell "−1 per point" [ref=f1e282]
+            - cell "up to −300" [ref=f1e283]
+          - row [ref=f1e284]:
+            - cell "Traffic" [ref=f1e285]
+            - cell "−1 per point" [ref=f1e286]
+            - cell "the busiest adjacent road" [ref=f1e287]
+          - row [ref=f1e288]:
+            - cell "Crime" [ref=f1e289]
+            - cell "−1 per point" [ref=f1e290]
+            - cell "up to −200" [ref=f1e291]
+          - row [ref=f1e292]:
+            - cell "Water tiles" [ref=f1e293]
+            - cell "0" [ref=f1e294]
+            - cell "always" [ref=f1e295]
+        - paragraph [ref=f1e296]: "Amenities, nature and shops spread by distance: full strength on the source tile, fading linearly to zero just past the radius. Effects ignore parcel borders, so a neighbour's park helps you and their factory hurts you."
+      - generic [ref=f1e297]:
+        - heading "Pollution, traffic, crime and fire" [level=2] [ref=f1e298]
+        - table [ref=f1e300]:
+          - rowgroup [ref=f1e301]:
+            - row [ref=f1e302]:
+              - columnheader "Effect" [ref=f1e303]
+              - columnheader "How it's made" [ref=f1e304]
+              - columnheader "Spread" [ref=f1e305]
+              - columnheader "Cap" [ref=f1e306]
+          - row [ref=f1e307]:
+            - cell "Pollution" [ref=f1e308]
+            - 'cell "industrial tiles 10/level (×1.5 dense); plants as listed; roads: traffic ÷ 3" [ref=f1e309]'
+            - cell "5 tiles, fading" [ref=f1e310]
+            - cell "300" [ref=f1e311]
+          - row [ref=f1e312]:
+            - cell "Traffic" [ref=f1e313]
+            - 'cell "on each road tile: occupants within 3 tiles ÷ 20; avenues carry 45%" [ref=f1e314]'
+            - cell "lowers land value next to the road" [ref=f1e315]
+            - cell "—" [ref=f1e316]
+          - row [ref=f1e317]:
+            - cell "Crime" [ref=f1e318]
+            - cell "occupants within 3 tiles ÷ 12; police coverage removes 80%" [ref=f1e319]
+            - cell "3 tiles" [ref=f1e320]
+            - cell "200" [ref=f1e321]
+          - row [ref=f1e322]:
+            - cell "Fire" [ref=f1e323]
+            - 'cell "each zone tile at level 2+ without fire coverage: 15 in a million per tick (about 0.54% a year)" [ref=f1e324]'
+            - cell "burns to rubble for 30 ticks, then regrows" [ref=f1e325]
+            - cell "—" [ref=f1e326]
+      - generic [ref=f1e327]:
+        - heading "Zones" [level=2] [ref=f1e328]
+        - paragraph [ref=f1e329]:
+          - text: Zoning costs
+          - generic [ref=f1e330]: $10.00
+          - text: per tile (low density) or
+          - generic [ref=f1e331]: $25.00
+          - text: (dense). Low density grows to level 3, dense to 6. Building on woodland costs an extra
+          - generic [ref=f1e332]: $3.00
+          - text: per tile.
+        - generic [ref=f1e333]:
+          - generic [ref=f1e334]:
+            - heading "Residential zone · $10.00 / $25.00 dense per tile" [level=3] [ref=f1e335]:
+              - text: Residential
+              - generic [ref=f1e336]: zone · $10.00 / $25.00 dense per tile
+            - paragraph [ref=f1e337]: "Homes. Residents are the workforce and the shoppers: they drive demand for every other zone, and they pay the most tax on valuable land."
+            - generic [ref=f1e338]:
+              - generic [ref=f1e339]:
+                - generic [ref=f1e340]: "12"
+                - text: residents / level
+              - generic [ref=f1e341]:
+                - generic [ref=f1e342]: 3 / 6
+                - text: max level low / dense
+              - generic [ref=f1e343]:
+                - generic [ref=f1e344]: $10.00
+                - text: cost / tile
+              - generic [ref=f1e345]:
+                - generic [ref=f1e346]: $25.00
+                - text: dense cost / tile
+            - table [ref=f1e348]:
+              - row [ref=f1e349]:
+                - columnheader "Level" [ref=f1e350]
+                - columnheader "Residents" [ref=f1e351]
+                - columnheader "Power" [ref=f1e352]
+                - columnheader "Water" [ref=f1e353]
+                - columnheader "Tax/mo @ LV 300" [ref=f1e354]
+                - columnheader "Tax/mo @ LV 500" [ref=f1e355]
+                - columnheader "Tax/mo @ LV 800" [ref=f1e356]
+                - columnheader "Pollution" [ref=f1e357]
+              - row [ref=f1e358]:
+                - cell "1" [ref=f1e359]
+                - cell "12" [ref=f1e360]
+                - cell "2" [ref=f1e361]
+                - cell "1" [ref=f1e362]
+                - cell "$5.04" [ref=f1e363]
+                - cell "$8.40" [ref=f1e364]
+                - cell "$13.44" [ref=f1e365]
+                - cell "0" [ref=f1e366]
+              - row [ref=f1e367]:
+                - cell "2" [ref=f1e368]
+                - cell "24" [ref=f1e369]
+                - cell "3" [ref=f1e370]
+                - cell "2" [ref=f1e371]
+                - cell "$10.08" [ref=f1e372]
+                - cell "$16.80" [ref=f1e373]
+                - cell "$26.88" [ref=f1e374]
+                - cell "0" [ref=f1e375]
+              - row [ref=f1e376]:
+                - cell "3" [ref=f1e377]
+                - cell "36" [ref=f1e378]
+                - cell "4" [ref=f1e379]
+                - cell "3" [ref=f1e380]
+                - cell "$15.12" [ref=f1e381]
+                - cell "$25.20" [ref=f1e382]
+                - cell "$40.32" [ref=f1e383]
+                - cell "0" [ref=f1e384]
+              - row [ref=f1e385]:
+                - cell "Dense 4" [ref=f1e386]
+                - cell "48" [ref=f1e387]
+                - cell "5" [ref=f1e388]
+                - cell "4" [ref=f1e389]
+                - cell "$20.16" [ref=f1e390]
+                - cell "$33.60" [ref=f1e391]
+                - cell "$53.76" [ref=f1e392]
+                - cell "0" [ref=f1e393]
+              - row [ref=f1e394]:
+                - cell "Dense 5" [ref=f1e395]
+                - cell "60" [ref=f1e396]
+                - cell "6" [ref=f1e397]
+                - cell "5" [ref=f1e398]
+                - cell "$25.20" [ref=f1e399]
+                - cell "$42.00" [ref=f1e400]
+                - cell "$67.20" [ref=f1e401]
+                - cell "0" [ref=f1e402]
+              - row [ref=f1e403]:
+                - cell "Dense 6" [ref=f1e404]
+                - cell "72" [ref=f1e405]
+                - cell "7" [ref=f1e406]
+                - cell "6" [ref=f1e407]
+                - cell "$30.24" [ref=f1e408]
+                - cell "$50.40" [ref=f1e409]
+                - cell "$80.64" [ref=f1e410]
+                - cell "0" [ref=f1e411]
+            - paragraph [ref=f1e412]: Tax at the default 7% rate, per tile, per month. An empty zoned lot (level 0) needs 1 power and pays nothing.
+          - generic [ref=f1e413]:
+            - heading "Commercial zone · $10.00 / $25.00 dense per tile" [level=3] [ref=f1e414]:
+              - text: Commercial
+              - generic [ref=f1e415]: zone · $10.00 / $25.00 dense per tile
+            - paragraph [ref=f1e416]: Shops. Need residents nearby and lift the land value around them by up to 120 points.
+            - generic [ref=f1e417]:
+              - generic [ref=f1e418]:
+                - generic [ref=f1e419]: "8"
+                - text: jobs / level
+              - generic [ref=f1e420]:
+                - generic [ref=f1e421]: 3 / 6
+                - text: max level low / dense
+              - generic [ref=f1e422]:
+                - generic [ref=f1e423]: $10.00
+                - text: cost / tile
+              - generic [ref=f1e424]:
+                - generic [ref=f1e425]: $25.00
+                - text: dense cost / tile
+            - table [ref=f1e427]:
+              - row [ref=f1e428]:
+                - columnheader "Level" [ref=f1e429]
+                - columnheader "Jobs" [ref=f1e430]
+                - columnheader "Power" [ref=f1e431]
+                - columnheader "Water" [ref=f1e432]
+                - columnheader "Tax/mo @ LV 300" [ref=f1e433]
+                - columnheader "Tax/mo @ LV 500" [ref=f1e434]
+                - columnheader "Tax/mo @ LV 800" [ref=f1e435]
+                - columnheader "Pollution" [ref=f1e436]
+              - row [ref=f1e437]:
+                - cell "1" [ref=f1e438]
+                - cell "8" [ref=f1e439]
+                - cell "2" [ref=f1e440]
+                - cell "1" [ref=f1e441]
+                - cell "$3.36" [ref=f1e442]
+                - cell "$5.60" [ref=f1e443]
+                - cell "$8.96" [ref=f1e444]
+                - cell "0" [ref=f1e445]
+              - row [ref=f1e446]:
+                - cell "2" [ref=f1e447]
+                - cell "16" [ref=f1e448]
+                - cell "3" [ref=f1e449]
+                - cell "2" [ref=f1e450]
+                - cell "$6.72" [ref=f1e451]
+                - cell "$11.20" [ref=f1e452]
+                - cell "$17.92" [ref=f1e453]
+                - cell "0" [ref=f1e454]
+              - row [ref=f1e455]:
+                - cell "3" [ref=f1e456]
+                - cell "24" [ref=f1e457]
+                - cell "4" [ref=f1e458]
+                - cell "3" [ref=f1e459]
+                - cell "$10.08" [ref=f1e460]
+                - cell "$16.80" [ref=f1e461]
+                - cell "$26.88" [ref=f1e462]
+                - cell "0" [ref=f1e463]
+              - row [ref=f1e464]:
+                - cell "Dense 4" [ref=f1e465]
+                - cell "32" [ref=f1e466]
+                - cell "5" [ref=f1e467]
+                - cell "4" [ref=f1e468]
+                - cell "$13.44" [ref=f1e469]
+                - cell "$22.40" [ref=f1e470]
+                - cell "$35.84" [ref=f1e471]
+                - cell "0" [ref=f1e472]
+              - row [ref=f1e473]:
+                - cell "Dense 5" [ref=f1e474]
+                - cell "40" [ref=f1e475]
+                - cell "6" [ref=f1e476]
+                - cell "5" [ref=f1e477]
+                - cell "$16.80" [ref=f1e478]
+                - cell "$28.00" [ref=f1e479]
+                - cell "$44.80" [ref=f1e480]
+                - cell "0" [ref=f1e481]
+              - row [ref=f1e482]:
+                - cell "Dense 6" [ref=f1e483]
+                - cell "48" [ref=f1e484]
+                - cell "7" [ref=f1e485]
+                - cell "6" [ref=f1e486]
+                - cell "$20.16" [ref=f1e487]
+                - cell "$33.60" [ref=f1e488]
+                - cell "$53.76" [ref=f1e489]
+                - cell "0" [ref=f1e490]
+            - paragraph [ref=f1e491]: Tax at the default 7% rate, per tile, per month. An empty zoned lot (level 0) needs 1 power and pays nothing.
+          - generic [ref=f1e492]:
+            - heading "Industrial zone · $10.00 / $25.00 dense per tile" [level=3] [ref=f1e493]:
+              - text: Industrial
+              - generic [ref=f1e494]: zone · $10.00 / $25.00 dense per tile
+            - paragraph [ref=f1e495]: "Factories and workshops. Taxed at base land value, so a cheap, polluted corner is fine. They pollute: 10 per level (×1.5 dense) within 5 tiles, and their own tiles lose 100 land value."
+            - generic [ref=f1e496]:
+              - generic [ref=f1e497]:
+                - generic [ref=f1e498]: "10"
+                - text: jobs / level
+              - generic [ref=f1e499]:
+                - generic [ref=f1e500]: 3 / 6
+                - text: max level low / dense
+              - generic [ref=f1e501]:
+                - generic [ref=f1e502]: $10.00
+                - text: cost / tile
+              - generic [ref=f1e503]:
+                - generic [ref=f1e504]: $25.00
+                - text: dense cost / tile
+            - table [ref=f1e506]:
+              - row [ref=f1e507]:
+                - columnheader "Level" [ref=f1e508]
+                - columnheader "Jobs" [ref=f1e509]
+                - columnheader "Power" [ref=f1e510]
+                - columnheader "Water" [ref=f1e511]
+                - columnheader "Tax/mo (any LV)" [ref=f1e512]
+                - columnheader "Pollution" [ref=f1e513]
+              - row [ref=f1e514]:
+                - cell "1" [ref=f1e515]
+                - cell "10" [ref=f1e516]
+                - cell "2" [ref=f1e517]
+                - cell "1" [ref=f1e518]
+                - cell "$2.80" [ref=f1e519]
+                - cell "10 (15 dense)" [ref=f1e520]
+              - row [ref=f1e521]:
+                - cell "2" [ref=f1e522]
+                - cell "20" [ref=f1e523]
+                - cell "3" [ref=f1e524]
+                - cell "2" [ref=f1e525]
+                - cell "$5.60" [ref=f1e526]
+                - cell "20 (30 dense)" [ref=f1e527]
+              - row [ref=f1e528]:
+                - cell "3" [ref=f1e529]
+                - cell "30" [ref=f1e530]
+                - cell "4" [ref=f1e531]
+                - cell "3" [ref=f1e532]
+                - cell "$8.40" [ref=f1e533]
+                - cell "30 (45 dense)" [ref=f1e534]
+              - row [ref=f1e535]:
+                - cell "Dense 4" [ref=f1e536]
+                - cell "40" [ref=f1e537]
+                - cell "5" [ref=f1e538]
+                - cell "4" [ref=f1e539]
+                - cell "$11.20" [ref=f1e540]
+                - cell "60" [ref=f1e541]
+              - row [ref=f1e542]:
+                - cell "Dense 5" [ref=f1e543]
+                - cell "50" [ref=f1e544]
+                - cell "6" [ref=f1e545]
+                - cell "5" [ref=f1e546]
+                - cell "$14.00" [ref=f1e547]
+                - cell "75" [ref=f1e548]
+              - row [ref=f1e549]:
+                - cell "Dense 6" [ref=f1e550]
+                - cell "60" [ref=f1e551]
+                - cell "7" [ref=f1e552]
+                - cell "6" [ref=f1e553]
+                - cell "$16.80" [ref=f1e554]
+                - cell "90" [ref=f1e555]
+            - paragraph [ref=f1e556]: Tax at the default 7% rate, per tile, per month. An empty zoned lot (level 0) needs 1 power and pays nothing.
+          - generic [ref=f1e557]:
+            - heading "Office zone · $10.00 / $25.00 dense per tile" [level=3] [ref=f1e558]:
+              - text: Office
+              - generic [ref=f1e559]: zone · $10.00 / $25.00 dense per tile
+            - paragraph [ref=f1e560]: Offices. Clean jobs that need education from level 2. The highest-paying zone once land is valuable.
+            - generic [ref=f1e561]:
+              - generic [ref=f1e562]:
+                - generic [ref=f1e563]: "10"
+                - text: jobs / level
+              - generic [ref=f1e564]:
+                - generic [ref=f1e565]: 3 / 6
+                - text: max level low / dense
+              - generic [ref=f1e566]:
+                - generic [ref=f1e567]: $10.00
+                - text: cost / tile
+              - generic [ref=f1e568]:
+                - generic [ref=f1e569]: $25.00
+                - text: dense cost / tile
+            - table [ref=f1e571]:
+              - row [ref=f1e572]:
+                - columnheader "Level" [ref=f1e573]
+                - columnheader "Jobs" [ref=f1e574]
+                - columnheader "Power" [ref=f1e575]
+                - columnheader "Water" [ref=f1e576]
+                - columnheader "Tax/mo @ LV 300" [ref=f1e577]
+                - columnheader "Tax/mo @ LV 500" [ref=f1e578]
+                - columnheader "Tax/mo @ LV 800" [ref=f1e579]
+                - columnheader "Pollution" [ref=f1e580]
+              - row [ref=f1e581]:
+                - cell "1" [ref=f1e582]
+                - cell "10" [ref=f1e583]
+                - cell "2" [ref=f1e584]
+                - cell "1" [ref=f1e585]
+                - cell "$4.20" [ref=f1e586]
+                - cell "$7.00" [ref=f1e587]
+                - cell "$11.20" [ref=f1e588]
+                - cell "0" [ref=f1e589]
+              - row [ref=f1e590]:
+                - cell "2" [ref=f1e591]
+                - cell "20" [ref=f1e592]
+                - cell "3" [ref=f1e593]
+                - cell "2" [ref=f1e594]
+                - cell "$8.40" [ref=f1e595]
+                - cell "$14.00" [ref=f1e596]
+                - cell "$22.40" [ref=f1e597]
+                - cell "0" [ref=f1e598]
+              - row [ref=f1e599]:
+                - cell "3" [ref=f1e600]
+                - cell "30" [ref=f1e601]
+                - cell "4" [ref=f1e602]
+                - cell "3" [ref=f1e603]
+                - cell "$12.60" [ref=f1e604]
+                - cell "$21.00" [ref=f1e605]
+                - cell "$33.60" [ref=f1e606]
+                - cell "0" [ref=f1e607]
+              - row [ref=f1e608]:
+                - cell "Dense 4" [ref=f1e609]
+                - cell "40" [ref=f1e610]
+                - cell "5" [ref=f1e611]
+                - cell "4" [ref=f1e612]
+                - cell "$16.80" [ref=f1e613]
+                - cell "$28.00" [ref=f1e614]
+                - cell "$44.80" [ref=f1e615]
+                - cell "0" [ref=f1e616]
+              - row [ref=f1e617]:
+                - cell "Dense 5" [ref=f1e618]
+                - cell "50" [ref=f1e619]
+                - cell "6" [ref=f1e620]
+                - cell "5" [ref=f1e621]
+                - cell "$21.00" [ref=f1e622]
+                - cell "$35.00" [ref=f1e623]
+                - cell "$56.00" [ref=f1e624]
+                - cell "0" [ref=f1e625]
+              - row [ref=f1e626]:
+                - cell "Dense 6" [ref=f1e627]
+                - cell "60" [ref=f1e628]
+                - cell "7" [ref=f1e629]
+                - cell "6" [ref=f1e630]
+                - cell "$25.20" [ref=f1e631]
+                - cell "$42.00" [ref=f1e632]
+                - cell "$67.20" [ref=f1e633]
+                - cell "0" [ref=f1e634]
+            - paragraph [ref=f1e635]: Tax at the default 7% rate, per tile, per month. An empty zoned lot (level 0) needs 1 power and pays nothing.
+      - generic [ref=f1e636]:
+        - heading "Roads and networks" [level=2] [ref=f1e637]
+        - generic [ref=f1e638]:
+          - generic [ref=f1e639]:
+            - heading "Street" [level=3] [ref=f1e640]
+            - paragraph [ref=f1e641]: "Two lanes. $10.00 per tile, $0.30/mo upkeep. Bridges over water: $40.00 per tile, double upkeep."
+          - generic [ref=f1e642]:
+            - heading "Avenue" [level=3] [ref=f1e643]
+            - paragraph [ref=f1e644]: "Planted median; carries traffic at 45% of a street's congestion. $25.00 per tile, $0.60/mo upkeep. Bridges: $100 per tile."
+          - generic [ref=f1e645]:
+            - heading "Power line" [level=3] [ref=f1e646]
+            - paragraph [ref=f1e647]: $5.00 per tile, $0.30/mo. Zones and most buildings also conduct, so you only need lines to bridge gaps. Lines over water become pylons.
+          - generic [ref=f1e648]:
+            - heading "Water pipe" [level=3] [ref=f1e649]
+            - paragraph [ref=f1e650]: $5.00 per tile, $0.30/mo. Underground; shown in the water overlay. Zones and buildings pass water on.
+          - generic [ref=f1e651]:
+            - heading "Bulldoze" [level=3] [ref=f1e652]
+            - paragraph [ref=f1e653]: $1.00 per tile, plus $3.00 to clear woodland.
+      - generic [ref=f1e654]:
+        - generic [ref=f1e655]:
+          - heading "Power" [level=2] [ref=f1e656]
+          - generic [ref=f1e657]:
+            - heading "Coal plant Power" [level=3] [ref=f1e658]:
+              - text: Coal plant
+              - generic [ref=f1e659]: Power
+            - paragraph [ref=f1e660]: Cheap, plentiful power. Very dirty.
+            - generic [ref=f1e661]:
+              - generic [ref=f1e662]:
+                - generic [ref=f1e663]: $3,000
+                - text: cost
+              - generic [ref=f1e664]:
+                - generic [ref=f1e665]: $30.00
+                - text: upkeep / month
+              - generic [ref=f1e666]:
+                - generic [ref=f1e667]: 2×2
+                - text: footprint
+              - generic [ref=f1e668]:
+                - generic [ref=f1e669]: "240"
+                - text: power supply
+              - generic [ref=f1e670]:
+                - generic [ref=f1e671]: "60"
+                - text: pollution
+              - generic [ref=f1e672]:
+                - generic [ref=f1e673]: "20"
+                - text: public jobs
+            - list [ref=f1e674]:
+              - listitem [ref=f1e675]: $12.50 to build per unit of power; $0.13 upkeep per unit per month.
+              - listitem [ref=f1e676]: Powers about 80 level-2 zone tiles (3 power each).
+              - listitem [ref=f1e677]: "Sold in full at 4¢: $288/mo, against $30.00/mo upkeep."
+              - listitem [ref=f1e678]: Its 20 public jobs count toward residential demand (+26 raw R) while it runs.
+              - listitem [ref=f1e679]: Pollution 60 at the centre, fading over 5 tiles; costs up to 60 land value nearby.
+              - listitem [ref=f1e680]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e681]:
+            - heading "Gas plant Power" [level=3] [ref=f1e682]:
+              - text: Gas plant
+              - generic [ref=f1e683]: Power
+            - paragraph [ref=f1e684]: Cleaner than coal, pricier to build and run.
+            - generic [ref=f1e685]:
+              - generic [ref=f1e686]:
+                - generic [ref=f1e687]: $5,500
+                - text: cost
+              - generic [ref=f1e688]:
+                - generic [ref=f1e689]: $42.00
+                - text: upkeep / month
+              - generic [ref=f1e690]:
+                - generic [ref=f1e691]: 2×2
+                - text: footprint
+              - generic [ref=f1e692]:
+                - generic [ref=f1e693]: "220"
+                - text: power supply
+              - generic [ref=f1e694]:
+                - generic [ref=f1e695]: "25"
+                - text: pollution
+              - generic [ref=f1e696]:
+                - generic [ref=f1e697]: "15"
+                - text: public jobs
+            - list [ref=f1e698]:
+              - listitem [ref=f1e699]: $25.00 to build per unit of power; $0.19 upkeep per unit per month.
+              - listitem [ref=f1e700]: Powers about 73 level-2 zone tiles (3 power each).
+              - listitem [ref=f1e701]: "Sold in full at 4¢: $264/mo, against $42.00/mo upkeep."
+              - listitem [ref=f1e702]: Its 15 public jobs count toward residential demand (+20 raw R) while it runs.
+              - listitem [ref=f1e703]: Pollution 25 at the centre, fading over 5 tiles; costs up to 25 land value nearby.
+              - listitem [ref=f1e704]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e705]:
+            - heading "Wind turbine Power" [level=3] [ref=f1e706]:
+              - text: Wind turbine
+              - generic [ref=f1e707]: Power
+            - paragraph [ref=f1e708]: A little clean power on a single tile.
+            - generic [ref=f1e709]:
+              - generic [ref=f1e710]:
+                - generic [ref=f1e711]: $600
+                - text: cost
+              - generic [ref=f1e712]:
+                - generic [ref=f1e713]: $4.50
+                - text: upkeep / month
+              - generic [ref=f1e714]:
+                - generic [ref=f1e715]: 1×1
+                - text: footprint
+              - generic [ref=f1e716]:
+                - generic [ref=f1e717]: "18"
+                - text: power supply
+            - list [ref=f1e718]:
+              - listitem [ref=f1e719]: $33.33 to build per unit of power; $0.25 upkeep per unit per month.
+              - listitem [ref=f1e720]: Powers about 6 level-2 zone tiles (3 power each).
+              - listitem [ref=f1e721]: "Sold in full at 4¢: $21.60/mo, against $4.50/mo upkeep."
+              - listitem [ref=f1e722]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e723]:
+            - heading "Solar farm Power" [level=3] [ref=f1e724]:
+              - text: Solar farm
+              - generic [ref=f1e725]: Power
+            - paragraph [ref=f1e726]: Clean power, modest output.
+            - generic [ref=f1e727]:
+              - generic [ref=f1e728]:
+                - generic [ref=f1e729]: $4,000
+                - text: cost
+              - generic [ref=f1e730]:
+                - generic [ref=f1e731]: $9.00
+                - text: upkeep / month
+              - generic [ref=f1e732]:
+                - generic [ref=f1e733]: 2×2
+                - text: footprint
+              - generic [ref=f1e734]:
+                - generic [ref=f1e735]: "90"
+                - text: power supply
+              - generic [ref=f1e736]:
+                - generic [ref=f1e737]: "4"
+                - text: public jobs
+            - list [ref=f1e738]:
+              - listitem [ref=f1e739]: $44.44 to build per unit of power; $0.10 upkeep per unit per month.
+              - listitem [ref=f1e740]: Powers about 30 level-2 zone tiles (3 power each).
+              - listitem [ref=f1e741]: "Sold in full at 4¢: $108/mo, against $9.00/mo upkeep."
+              - listitem [ref=f1e742]: Its 4 public jobs count toward residential demand (+5 raw R) while it runs.
+              - listitem [ref=f1e743]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e744]:
+            - heading "Nuclear plant Power" [level=3] [ref=f1e745]:
+              - text: Nuclear plant
+              - generic [ref=f1e746]: Power
+            - paragraph [ref=f1e747]: Enormous clean output at an enormous price.
+            - generic [ref=f1e748]:
+              - generic [ref=f1e749]:
+                - generic [ref=f1e750]: $25,000
+                - text: cost
+              - generic [ref=f1e751]:
+                - generic [ref=f1e752]: $120
+                - text: upkeep / month
+              - generic [ref=f1e753]:
+                - generic [ref=f1e754]: 3×3
+                - text: footprint
+              - generic [ref=f1e755]:
+                - generic [ref=f1e756]: 1,200
+                - text: power supply
+              - generic [ref=f1e757]:
+                - generic [ref=f1e758]: "10"
+                - text: pollution
+              - generic [ref=f1e759]:
+                - generic [ref=f1e760]: "80"
+                - text: public jobs
+            - list [ref=f1e761]:
+              - listitem [ref=f1e762]: $20.83 to build per unit of power; $0.10 upkeep per unit per month.
+              - listitem [ref=f1e763]: Powers about 400 level-2 zone tiles (3 power each).
+              - listitem [ref=f1e764]: "Sold in full at 4¢: $1,440/mo, against $120/mo upkeep."
+              - listitem [ref=f1e765]: Its 80 public jobs count toward residential demand (+104 raw R) while it runs.
+              - listitem [ref=f1e766]: Pollution 10 at the centre, fading over 5 tiles; costs up to 10 land value nearby.
+              - listitem [ref=f1e767]: Passes power and water to neighbouring tiles.
+        - generic [ref=f1e768]:
+          - heading "Water" [level=2] [ref=f1e769]
+          - generic [ref=f1e770]:
+            - heading "Water pump Water" [level=3] [ref=f1e771]:
+              - text: Water pump
+              - generic [ref=f1e772]: Water
+            - paragraph [ref=f1e773]: Pumps water; much more beside the river. Needs power.
+            - generic [ref=f1e774]:
+              - generic [ref=f1e775]:
+                - generic [ref=f1e776]: $1,500
+                - text: cost
+              - generic [ref=f1e777]:
+                - generic [ref=f1e778]: $15.00
+                - text: upkeep / month
+              - generic [ref=f1e779]:
+                - generic [ref=f1e780]: 1×1
+                - text: footprint
+              - generic [ref=f1e781]:
+                - generic [ref=f1e782]: 80 (+60)
+                - text: water supply (by river)
+              - generic [ref=f1e783]:
+                - generic [ref=f1e784]: "6"
+                - text: power needed
+            - list [ref=f1e785]:
+              - listitem [ref=f1e786]: Waters about 40 level-2 tiles (70 by the river).
+              - listitem [ref=f1e787]: "Sold in full at 4¢: $96.00/mo ($168 by the river)."
+              - listitem [ref=f1e788]: Does nothing without 6 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e789]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e790]:
+            - heading "Water tower Water" [level=3] [ref=f1e791]:
+              - text: Water tower
+              - generic [ref=f1e792]: Water
+            - paragraph [ref=f1e793]: Small water supply anywhere. Needs power.
+            - generic [ref=f1e794]:
+              - generic [ref=f1e795]:
+                - generic [ref=f1e796]: $900
+                - text: cost
+              - generic [ref=f1e797]:
+                - generic [ref=f1e798]: $7.50
+                - text: upkeep / month
+              - generic [ref=f1e799]:
+                - generic [ref=f1e800]: 1×1
+                - text: footprint
+              - generic [ref=f1e801]:
+                - generic [ref=f1e802]: "40"
+                - text: water supply (by river)
+              - generic [ref=f1e803]:
+                - generic [ref=f1e804]: "2"
+                - text: power needed
+            - list [ref=f1e805]:
+              - listitem [ref=f1e806]: Waters about 20 level-2 tiles (20 by the river).
+              - listitem [ref=f1e807]: "Sold in full at 4¢: $48.00/mo ($48.00 by the river)."
+              - listitem [ref=f1e808]: Does nothing without 2 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e809]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e810]:
+            - heading "Water treatment Water" [level=3] [ref=f1e811]:
+              - text: Water treatment
+              - generic [ref=f1e812]: Water
+            - paragraph [ref=f1e813]: Large water supply. Needs lots of power.
+            - generic [ref=f1e814]:
+              - generic [ref=f1e815]:
+                - generic [ref=f1e816]: $6,000
+                - text: cost
+              - generic [ref=f1e817]:
+                - generic [ref=f1e818]: $45.00
+                - text: upkeep / month
+              - generic [ref=f1e819]:
+                - generic [ref=f1e820]: 2×2
+                - text: footprint
+              - generic [ref=f1e821]:
+                - generic [ref=f1e822]: 320 (+120)
+                - text: water supply (by river)
+              - generic [ref=f1e823]:
+                - generic [ref=f1e824]: "20"
+                - text: power needed
+              - generic [ref=f1e825]:
+                - generic [ref=f1e826]: "25"
+                - text: public jobs
+            - list [ref=f1e827]:
+              - listitem [ref=f1e828]: Waters about 160 level-2 tiles (220 by the river).
+              - listitem [ref=f1e829]: "Sold in full at 4¢: $384/mo ($528 by the river)."
+              - listitem [ref=f1e830]: Does nothing without 20 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e831]: Its 25 public jobs count toward residential demand (+33 raw R) while it runs.
+              - listitem [ref=f1e832]: Passes power and water to neighbouring tiles.
+        - generic [ref=f1e833]:
+          - heading "Services" [level=2] [ref=f1e834]
+          - generic [ref=f1e835]:
+            - heading "Police station Services" [level=3] [ref=f1e836]:
+              - text: Police station
+              - generic [ref=f1e837]: Services
+            - paragraph [ref=f1e838]: Cuts crime nearby.
+            - generic [ref=f1e839]:
+              - generic [ref=f1e840]:
+                - generic [ref=f1e841]: $2,500
+                - text: cost
+              - generic [ref=f1e842]:
+                - generic [ref=f1e843]: $24.00
+                - text: upkeep / month
+              - generic [ref=f1e844]:
+                - generic [ref=f1e845]: 1×1
+                - text: footprint
+              - generic [ref=f1e846]:
+                - generic [ref=f1e847]: "4"
+                - text: power needed
+              - generic [ref=f1e848]:
+                - generic [ref=f1e849]: Police · 10
+                - text: service · radius
+              - generic [ref=f1e850]:
+                - generic [ref=f1e851]: "15"
+                - text: public jobs
+            - list [ref=f1e852]:
+              - listitem [ref=f1e853]: Does nothing without 4 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e854]: Its 15 public jobs count toward residential demand (+20 raw R) while it runs.
+              - listitem [ref=f1e855]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e856]:
+            - heading "Fire station Services" [level=3] [ref=f1e857]:
+              - text: Fire station
+              - generic [ref=f1e858]: Services
+            - paragraph [ref=f1e859]: Protects nearby buildings from fire.
+            - generic [ref=f1e860]:
+              - generic [ref=f1e861]:
+                - generic [ref=f1e862]: $2,500
+                - text: cost
+              - generic [ref=f1e863]:
+                - generic [ref=f1e864]: $24.00
+                - text: upkeep / month
+              - generic [ref=f1e865]:
+                - generic [ref=f1e866]: 1×1
+                - text: footprint
+              - generic [ref=f1e867]:
+                - generic [ref=f1e868]: "4"
+                - text: power needed
+              - generic [ref=f1e869]:
+                - generic [ref=f1e870]: Fire · 10
+                - text: service · radius
+              - generic [ref=f1e871]:
+                - generic [ref=f1e872]: "15"
+                - text: public jobs
+            - list [ref=f1e873]:
+              - listitem [ref=f1e874]: Does nothing without 4 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e875]: Its 15 public jobs count toward residential demand (+20 raw R) while it runs.
+              - listitem [ref=f1e876]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e877]:
+            - heading "Clinic Services" [level=3] [ref=f1e878]:
+              - text: Clinic
+              - generic [ref=f1e879]: Services
+            - paragraph [ref=f1e880]: Health coverage for a small area.
+            - generic [ref=f1e881]:
+              - generic [ref=f1e882]:
+                - generic [ref=f1e883]: $2,000
+                - text: cost
+              - generic [ref=f1e884]:
+                - generic [ref=f1e885]: $18.00
+                - text: upkeep / month
+              - generic [ref=f1e886]:
+                - generic [ref=f1e887]: 1×1
+                - text: footprint
+              - generic [ref=f1e888]:
+                - generic [ref=f1e889]: "4"
+                - text: power needed
+              - generic [ref=f1e890]:
+                - generic [ref=f1e891]: Health · 7
+                - text: service · radius
+              - generic [ref=f1e892]:
+                - generic [ref=f1e893]: +20 · 3
+                - text: land value · radius
+              - generic [ref=f1e894]:
+                - generic [ref=f1e895]: "10"
+                - text: public jobs
+            - list [ref=f1e896]:
+              - listitem [ref=f1e897]: Does nothing without 4 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e898]: Its 10 public jobs count toward residential demand (+13 raw R) while it runs.
+              - listitem [ref=f1e899]: Adds 20 on its own tiles, fading to 0 just past 3 tiles; amenities stack up to +400.
+              - listitem [ref=f1e900]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e901]:
+            - heading "Hospital Services" [level=3] [ref=f1e902]:
+              - text: Hospital
+              - generic [ref=f1e903]: Services
+            - paragraph [ref=f1e904]: Wide health coverage. Lets towers grow tall.
+            - generic [ref=f1e905]:
+              - generic [ref=f1e906]:
+                - generic [ref=f1e907]: $8,000
+                - text: cost
+              - generic [ref=f1e908]:
+                - generic [ref=f1e909]: $60.00
+                - text: upkeep / month
+              - generic [ref=f1e910]:
+                - generic [ref=f1e911]: 2×2
+                - text: footprint
+              - generic [ref=f1e912]:
+                - generic [ref=f1e913]: "12"
+                - text: power needed
+              - generic [ref=f1e914]:
+                - generic [ref=f1e915]: Health · 16
+                - text: service · radius
+              - generic [ref=f1e916]:
+                - generic [ref=f1e917]: +40 · 5
+                - text: land value · radius
+              - generic [ref=f1e918]:
+                - generic [ref=f1e919]: "60"
+                - text: public jobs
+            - list [ref=f1e920]:
+              - listitem [ref=f1e921]: Does nothing without 12 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e922]: Its 60 public jobs count toward residential demand (+78 raw R) while it runs.
+              - listitem [ref=f1e923]: Adds 40 on its own tiles, fading to 0 just past 5 tiles; amenities stack up to +400.
+              - listitem [ref=f1e924]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e925]:
+            - heading "School Services" [level=3] [ref=f1e926]:
+              - text: School
+              - generic [ref=f1e927]: Services
+            - paragraph [ref=f1e928]: "Education: lets housing past level 2 and offices grow."
+            - generic [ref=f1e929]:
+              - generic [ref=f1e930]:
+                - generic [ref=f1e931]: $4,000
+                - text: cost
+              - generic [ref=f1e932]:
+                - generic [ref=f1e933]: $30.00
+                - text: upkeep / month
+              - generic [ref=f1e934]:
+                - generic [ref=f1e935]: 2×2
+                - text: footprint
+              - generic [ref=f1e936]:
+                - generic [ref=f1e937]: "8"
+                - text: power needed
+              - generic [ref=f1e938]:
+                - generic [ref=f1e939]: Education · 10
+                - text: service · radius
+              - generic [ref=f1e940]:
+                - generic [ref=f1e941]: "30"
+                - text: public jobs
+            - list [ref=f1e942]:
+              - listitem [ref=f1e943]: Does nothing without 8 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e944]: Its 30 public jobs count toward residential demand (+39 raw R) while it runs.
+              - listitem [ref=f1e945]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e946]:
+            - heading "University Services" [level=3] [ref=f1e947]:
+              - text: University
+              - generic [ref=f1e948]: Services
+            - paragraph [ref=f1e949]: Wide education coverage and a land value boost.
+            - generic [ref=f1e950]:
+              - generic [ref=f1e951]:
+                - generic [ref=f1e952]: $15,000
+                - text: cost
+              - generic [ref=f1e953]:
+                - generic [ref=f1e954]: $90.00
+                - text: upkeep / month
+              - generic [ref=f1e955]:
+                - generic [ref=f1e956]: 3×3
+                - text: footprint
+              - generic [ref=f1e957]:
+                - generic [ref=f1e958]: "20"
+                - text: power needed
+              - generic [ref=f1e959]:
+                - generic [ref=f1e960]: Education · 20
+                - text: service · radius
+              - generic [ref=f1e961]:
+                - generic [ref=f1e962]: +120 · 8
+                - text: land value · radius
+              - generic [ref=f1e963]:
+                - generic [ref=f1e964]: "120"
+                - text: public jobs
+            - list [ref=f1e965]:
+              - listitem [ref=f1e966]: Does nothing without 20 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e967]: Its 120 public jobs count toward residential demand (+156 raw R) while it runs.
+              - listitem [ref=f1e968]: Adds 120 on its own tiles, fading to 0 just past 8 tiles; amenities stack up to +400.
+              - listitem [ref=f1e969]: Passes power and water to neighbouring tiles.
+        - generic [ref=f1e970]:
+          - heading "Parks" [level=2] [ref=f1e971]
+          - generic [ref=f1e972]:
+            - heading "Park Parks" [level=3] [ref=f1e973]:
+              - text: Park
+              - generic [ref=f1e974]: Parks
+            - paragraph [ref=f1e975]: Trees and paths. Lifts land value nearby.
+            - generic [ref=f1e976]:
+              - generic [ref=f1e977]:
+                - generic [ref=f1e978]: $50.00
+                - text: cost
+              - generic [ref=f1e979]:
+                - generic [ref=f1e980]: $0.60
+                - text: upkeep / month
+              - generic [ref=f1e981]:
+                - generic [ref=f1e982]: 1×1
+                - text: footprint
+              - generic [ref=f1e983]:
+                - generic [ref=f1e984]: +140 · 4
+                - text: land value · radius
+            - list [ref=f1e985]:
+              - listitem [ref=f1e986]: Adds 140 on its own tiles, fading to 0 just past 4 tiles; amenities stack up to +400.
+              - listitem [ref=f1e987]: Does not pass power or water on.
+          - generic [ref=f1e988]:
+            - heading "Plaza Parks" [level=3] [ref=f1e989]:
+              - text: Plaza
+              - generic [ref=f1e990]: Parks
+            - paragraph [ref=f1e991]: Paved square. Lifts land value, good beside shops.
+            - generic [ref=f1e992]:
+              - generic [ref=f1e993]:
+                - generic [ref=f1e994]: $80.00
+                - text: cost
+              - generic [ref=f1e995]:
+                - generic [ref=f1e996]: $0.90
+                - text: upkeep / month
+              - generic [ref=f1e997]:
+                - generic [ref=f1e998]: 1×1
+                - text: footprint
+              - generic [ref=f1e999]:
+                - generic [ref=f1e1000]: +90 · 3
+                - text: land value · radius
+            - list [ref=f1e1001]:
+              - listitem [ref=f1e1002]: Adds 90 on its own tiles, fading to 0 just past 3 tiles; amenities stack up to +400.
+              - listitem [ref=f1e1003]: Does not pass power or water on.
+          - generic [ref=f1e1004]:
+            - heading "Playground Parks" [level=3] [ref=f1e1005]:
+              - text: Playground
+              - generic [ref=f1e1006]: Parks
+            - paragraph [ref=f1e1007]: Families love it.
+            - generic [ref=f1e1008]:
+              - generic [ref=f1e1009]:
+                - generic [ref=f1e1010]: $120
+                - text: cost
+              - generic [ref=f1e1011]:
+                - generic [ref=f1e1012]: $1.20
+                - text: upkeep / month
+              - generic [ref=f1e1013]:
+                - generic [ref=f1e1014]: 1×1
+                - text: footprint
+              - generic [ref=f1e1015]:
+                - generic [ref=f1e1016]: +110 · 3
+                - text: land value · radius
+            - list [ref=f1e1017]:
+              - listitem [ref=f1e1018]: Adds 110 on its own tiles, fading to 0 just past 3 tiles; amenities stack up to +400.
+              - listitem [ref=f1e1019]: Does not pass power or water on.
+          - generic [ref=f1e1020]:
+            - heading "Sports field Parks" [level=3] [ref=f1e1021]:
+              - text: Sports field
+              - generic [ref=f1e1022]: Parks
+            - paragraph [ref=f1e1023]: Big land value boost over a wide area.
+            - generic [ref=f1e1024]:
+              - generic [ref=f1e1025]:
+                - generic [ref=f1e1026]: $1,500
+                - text: cost
+              - generic [ref=f1e1027]:
+                - generic [ref=f1e1028]: $9.00
+                - text: upkeep / month
+              - generic [ref=f1e1029]:
+                - generic [ref=f1e1030]: 2×2
+                - text: footprint
+              - generic [ref=f1e1031]:
+                - generic [ref=f1e1032]: "2"
+                - text: power needed
+              - generic [ref=f1e1033]:
+                - generic [ref=f1e1034]: +170 · 6
+                - text: land value · radius
+            - list [ref=f1e1035]:
+              - listitem [ref=f1e1036]: Does nothing without 2 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e1037]: Adds 170 on its own tiles, fading to 0 just past 6 tiles; amenities stack up to +400.
+              - listitem [ref=f1e1038]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e1039]:
+            - heading "Stadium Parks" [level=3] [ref=f1e1040]:
+              - text: Stadium
+              - generic [ref=f1e1041]: Parks
+            - paragraph [ref=f1e1042]: A landmark that lifts the whole district.
+            - generic [ref=f1e1043]:
+              - generic [ref=f1e1044]:
+                - generic [ref=f1e1045]: $20,000
+                - text: cost
+              - generic [ref=f1e1046]:
+                - generic [ref=f1e1047]: $90.00
+                - text: upkeep / month
+              - generic [ref=f1e1048]:
+                - generic [ref=f1e1049]: 3×3
+                - text: footprint
+              - generic [ref=f1e1050]:
+                - generic [ref=f1e1051]: "30"
+                - text: power needed
+              - generic [ref=f1e1052]:
+                - generic [ref=f1e1053]: +260 · 10
+                - text: land value · radius
+              - generic [ref=f1e1054]:
+                - generic [ref=f1e1055]: "50"
+                - text: public jobs
+              - generic [ref=f1e1056]:
+                - generic [ref=f1e1057]: C+40
+                - text: demand bonus
+            - list [ref=f1e1058]:
+              - listitem [ref=f1e1059]: Does nothing without 30 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e1060]: Its 50 public jobs count toward residential demand (+65 raw R) while it runs.
+              - listitem [ref=f1e1061]: Adds 260 on its own tiles, fading to 0 just past 10 tiles; amenities stack up to +400.
+              - listitem [ref=f1e1062]: Passes power and water to neighbouring tiles.
+        - generic [ref=f1e1063]:
+          - heading "Landmarks" [level=2] [ref=f1e1064]
+          - generic [ref=f1e1065]:
+            - heading "Town hall Landmarks" [level=3] [ref=f1e1066]:
+              - text: Town hall
+              - generic [ref=f1e1067]: Landmarks
+            - paragraph [ref=f1e1068]: "Civic pride: attracts residents to the region."
+            - generic [ref=f1e1069]:
+              - generic [ref=f1e1070]:
+                - generic [ref=f1e1071]: $10,000
+                - text: cost
+              - generic [ref=f1e1072]:
+                - generic [ref=f1e1073]: $30.00
+                - text: upkeep / month
+              - generic [ref=f1e1074]:
+                - generic [ref=f1e1075]: 2×2
+                - text: footprint
+              - generic [ref=f1e1076]:
+                - generic [ref=f1e1077]: "10"
+                - text: power needed
+              - generic [ref=f1e1078]:
+                - generic [ref=f1e1079]: +120 · 12
+                - text: land value · radius
+              - generic [ref=f1e1080]:
+                - generic [ref=f1e1081]: "40"
+                - text: public jobs
+              - generic [ref=f1e1082]:
+                - generic [ref=f1e1083]: R+80 O+20
+                - text: demand bonus
+            - list [ref=f1e1084]:
+              - listitem [ref=f1e1085]: Does nothing without 10 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e1086]: Its 40 public jobs count toward residential demand (+52 raw R) while it runs.
+              - listitem [ref=f1e1087]: Adds 120 on its own tiles, fading to 0 just past 12 tiles; amenities stack up to +400.
+              - listitem [ref=f1e1088]: Passes power and water to neighbouring tiles.
+          - generic [ref=f1e1089]:
+            - heading "Monument Landmarks" [level=3] [ref=f1e1090]:
+              - text: Monument
+              - generic [ref=f1e1091]: Landmarks
+            - paragraph [ref=f1e1092]: A statue people travel to see.
+            - generic [ref=f1e1093]:
+              - generic [ref=f1e1094]:
+                - generic [ref=f1e1095]: $6,000
+                - text: cost
+              - generic [ref=f1e1096]:
+                - generic [ref=f1e1097]: $6.00
+                - text: upkeep / month
+              - generic [ref=f1e1098]:
+                - generic [ref=f1e1099]: 1×1
+                - text: footprint
+              - generic [ref=f1e1100]:
+                - generic [ref=f1e1101]: +150 · 6
+                - text: land value · radius
+            - list [ref=f1e1102]:
+              - listitem [ref=f1e1103]: Adds 150 on its own tiles, fading to 0 just past 6 tiles; amenities stack up to +400.
+              - listitem [ref=f1e1104]: Does not pass power or water on.
+          - generic [ref=f1e1105]:
+            - heading "Airport Landmarks" [level=3] [ref=f1e1106]:
+              - text: Airport
+              - generic [ref=f1e1107]: Landmarks
+            - paragraph [ref=f1e1108]: Brings business and industry to the region. Noisy.
+            - generic [ref=f1e1109]:
+              - generic [ref=f1e1110]:
+                - generic [ref=f1e1111]: $40,000
+                - text: cost
+              - generic [ref=f1e1112]:
+                - generic [ref=f1e1113]: $150
+                - text: upkeep / month
+              - generic [ref=f1e1114]:
+                - generic [ref=f1e1115]: 4×4
+                - text: footprint
+              - generic [ref=f1e1116]:
+                - generic [ref=f1e1117]: "40"
+                - text: power needed
+              - generic [ref=f1e1118]:
+                - generic [ref=f1e1119]: "40"
+                - text: pollution
+              - generic [ref=f1e1120]:
+                - generic [ref=f1e1121]: "150"
+                - text: public jobs
+              - generic [ref=f1e1122]:
+                - generic [ref=f1e1123]: C+80 I+80 O+80
+                - text: demand bonus
+            - list [ref=f1e1124]:
+              - listitem [ref=f1e1125]: Does nothing without 40 power; an unpowered building shows a red beacon.
+              - listitem [ref=f1e1126]: Its 150 public jobs count toward residential demand (+195 raw R) while it runs.
+              - listitem [ref=f1e1127]: Pollution 40 at the centre, fading over 5 tiles; costs up to 40 land value nearby.
+              - listitem [ref=f1e1128]: Passes power and water to neighbouring tiles.
+      - generic [ref=f1e1129]:
+        - heading "All balance constants" [level=2] [ref=f1e1130]
+        - paragraph [ref=f1e1131]:
+          - text: The raw values from
+          - code [ref=f1e1132]: config/balance.ron
+          - text: . Money is in cents, rates per tick. Every save keeps the values it was started with.
+        - table [ref=f1e1134]:
+          - rowgroup [ref=f1e1135]:
+            - row [ref=f1e1136]:
+              - columnheader "Name" [ref=f1e1137]
+              - columnheader "Value" [ref=f1e1138]
+          - row [ref=f1e1139]:
+            - cell [ref=f1e1140]:
+              - code [ref=f1e1141]: ai_think_interval
+            - cell "8" [ref=f1e1142]
+          - row [ref=f1e1143]:
+            - cell [ref=f1e1144]:
+              - code [ref=f1e1145]: avenue_cost
+            - cell "2,500" [ref=f1e1146]
+          - row [ref=f1e1147]:
+            - cell [ref=f1e1148]:
+              - code [ref=f1e1149]: avenue_traffic_percent
+            - cell "45" [ref=f1e1150]
+          - row [ref=f1e1151]:
+            - cell [ref=f1e1152]:
+              - code [ref=f1e1153]: avenue_upkeep
+            - cell "2" [ref=f1e1154]
+          - row [ref=f1e1155]:
+            - cell [ref=f1e1156]:
+              - code [ref=f1e1157]: base_commercial_demand
+            - cell "20" [ref=f1e1158]
+          - row [ref=f1e1159]:
+            - cell [ref=f1e1160]:
+              - code [ref=f1e1161]: base_industrial_demand
+            - cell "80" [ref=f1e1162]
+          - row [ref=f1e1163]:
+            - cell [ref=f1e1164]:
+              - code [ref=f1e1165]: base_office_demand
+            - cell "10" [ref=f1e1166]
+          - row [ref=f1e1167]:
+            - cell [ref=f1e1168]:
+              - code [ref=f1e1169]: base_residential_demand
+            - cell "80" [ref=f1e1170]
+          - row [ref=f1e1171]:
+            - cell [ref=f1e1172]:
+              - code [ref=f1e1173]: bridge_cost_multiplier
+            - cell "4" [ref=f1e1174]
+          - row [ref=f1e1175]:
+            - cell [ref=f1e1176]:
+              - code [ref=f1e1177]: bulldoze_cost
+            - cell "100" [ref=f1e1178]
+          - row [ref=f1e1179]:
+            - cell [ref=f1e1180]:
+              - code [ref=f1e1181]: clear_forest_cost
+            - cell "300" [ref=f1e1182]
+          - row [ref=f1e1183]:
+            - cell [ref=f1e1184]:
+              - code [ref=f1e1185]: commercial_bonus
+            - cell "40" [ref=f1e1186]
+          - row [ref=f1e1187]:
+            - cell [ref=f1e1188]:
+              - code [ref=f1e1189]: commercial_jobs_per_level
+            - cell "8" [ref=f1e1190]
+          - row [ref=f1e1191]:
+            - cell [ref=f1e1192]:
+              - code [ref=f1e1193]: commercial_radius
+            - cell "3" [ref=f1e1194]
+          - row [ref=f1e1195]:
+            - cell [ref=f1e1196]:
+              - code [ref=f1e1197]: crime_cap
+            - cell "200" [ref=f1e1198]
+          - row [ref=f1e1199]:
+            - cell [ref=f1e1200]:
+              - code [ref=f1e1201]: crime_divisor
+            - cell "12" [ref=f1e1202]
+          - row [ref=f1e1203]:
+            - cell [ref=f1e1204]:
+              - code [ref=f1e1205]: crime_radius
+            - cell "3" [ref=f1e1206]
+          - row [ref=f1e1207]:
+            - cell [ref=f1e1208]:
+              - code [ref=f1e1209]: crime_weight
+            - cell "1" [ref=f1e1210]
+          - row [ref=f1e1211]:
+            - cell [ref=f1e1212]:
+              - code [ref=f1e1213]: debt_floor
+            - cell "-500,000" [ref=f1e1214]
+          - row [ref=f1e1215]:
+            - cell [ref=f1e1216]:
+              - code [ref=f1e1217]: decay_chance_per_mille
+            - cell "40" [ref=f1e1218]
+          - row [ref=f1e1219]:
+            - cell [ref=f1e1220]:
+              - code [ref=f1e1221]: default_tax_rate
+            - cell "7" [ref=f1e1222]
+          - row [ref=f1e1223]:
+            - cell [ref=f1e1224]:
+              - code [ref=f1e1225]: default_utility_price
+            - cell "4" [ref=f1e1226]
+          - row [ref=f1e1227]:
+            - cell [ref=f1e1228]:
+              - code [ref=f1e1229]: dense_min_land_value
+            - cell "380" [ref=f1e1230]
+          - row [ref=f1e1231]:
+            - cell [ref=f1e1232]:
+              - code [ref=f1e1233]: dense_zone_cost
+            - cell "2,500" [ref=f1e1234]
+          - row [ref=f1e1235]:
+            - cell [ref=f1e1236]:
+              - code [ref=f1e1237]: education_free_levels
+            - cell "2" [ref=f1e1238]
+          - row [ref=f1e1239]:
+            - cell [ref=f1e1240]:
+              - code [ref=f1e1241]: fire_chance_per_million
+            - cell "15" [ref=f1e1242]
+          - row [ref=f1e1243]:
+            - cell [ref=f1e1244]:
+              - code [ref=f1e1245]: fire_rubble_ticks
+            - cell "30" [ref=f1e1246]
+          - row [ref=f1e1247]:
+            - cell [ref=f1e1248]:
+              - code [ref=f1e1249]: forest_bonus
+            - cell "50" [ref=f1e1250]
+          - row [ref=f1e1251]:
+            - cell [ref=f1e1252]:
+              - code [ref=f1e1253]: forest_radius
+            - cell "2" [ref=f1e1254]
+          - row [ref=f1e1255]:
+            - cell [ref=f1e1256]:
+              - code [ref=f1e1257]: game_length_ticks
+            - cell "3,600" [ref=f1e1258]
+          - row [ref=f1e1259]:
+            - cell [ref=f1e1260]:
+              - code [ref=f1e1261]: growth_jitter
+            - cell "60" [ref=f1e1262]
+          - row [ref=f1e1263]:
+            - cell [ref=f1e1264]:
+              - code [ref=f1e1265]: health_free_levels
+            - cell "4" [ref=f1e1266]
+          - row [ref=f1e1267]:
+            - cell [ref=f1e1268]:
+              - code [ref=f1e1269]: high_density_max_level
+            - cell "6" [ref=f1e1270]
+          - row [ref=f1e1271]:
+            - cell [ref=f1e1272]:
+              - code [ref=f1e1273]: industrial_jobs_per_level
+            - cell "10" [ref=f1e1274]
+          - row [ref=f1e1275]:
+            - cell [ref=f1e1276]:
+              - code [ref=f1e1277]: industrial_pollution_per_level
+            - cell "10" [ref=f1e1278]
+          - row [ref=f1e1279]:
+            - cell [ref=f1e1280]:
+              - code [ref=f1e1281]: land_value_base
+            - cell "200" [ref=f1e1282]
+          - row [ref=f1e1283]:
+            - cell [ref=f1e1284]:
+              - code [ref=f1e1285]: land_value_max
+            - cell "1,000" [ref=f1e1286]
+          - row [ref=f1e1287]:
+            - cell [ref=f1e1288]:
+              - code [ref=f1e1289]: land_value_smoothing
+            - cell "6" [ref=f1e1290]
+          - row [ref=f1e1291]:
+            - cell [ref=f1e1292]:
+              - code [ref=f1e1293]: low_density_max_level
+            - cell "3" [ref=f1e1294]
+          - row [ref=f1e1295]:
+            - cell [ref=f1e1296]:
+              - code [ref=f1e1297]: map_height
+            - cell "48" [ref=f1e1298]
+          - row [ref=f1e1299]:
+            - cell [ref=f1e1300]:
+              - code [ref=f1e1301]: map_width
+            - cell "64" [ref=f1e1302]
+          - row [ref=f1e1303]:
+            - cell [ref=f1e1304]:
+              - code [ref=f1e1305]: max_growth_per_tick
+            - cell "4" [ref=f1e1306]
+          - row [ref=f1e1307]:
+            - cell [ref=f1e1308]:
+              - code [ref=f1e1309]: max_tax_rate
+            - cell "20" [ref=f1e1310]
+          - row [ref=f1e1311]:
+            - cell [ref=f1e1312]:
+              - code [ref=f1e1313]: neutral_tax_rate
+            - cell "7" [ref=f1e1314]
+          - row [ref=f1e1315]:
+            - cell [ref=f1e1316]:
+              - code [ref=f1e1317]: office_jobs_per_level
+            - cell "10" [ref=f1e1318]
+          - row [ref=f1e1319]:
+            - cell [ref=f1e1320]:
+              - code [ref=f1e1321]: police_crime_reduction_percent
+            - cell "80" [ref=f1e1322]
+          - row [ref=f1e1323]:
+            - cell [ref=f1e1324]:
+              - code [ref=f1e1325]: pollution_cap
+            - cell "300" [ref=f1e1326]
+          - row [ref=f1e1327]:
+            - cell [ref=f1e1328]:
+              - code [ref=f1e1329]: pollution_radius
+            - cell "5" [ref=f1e1330]
+          - row [ref=f1e1331]:
+            - cell [ref=f1e1332]:
+              - code [ref=f1e1333]: pollution_weight
+            - cell "1" [ref=f1e1334]
+          - row [ref=f1e1335]:
+            - cell [ref=f1e1336]:
+              - code [ref=f1e1337]: power_line_cost
+            - cell "500" [ref=f1e1338]
+          - row [ref=f1e1339]:
+            - cell [ref=f1e1340]:
+              - code [ref=f1e1341]: power_line_upkeep
+            - cell "1" [ref=f1e1342]
+          - row [ref=f1e1343]:
+            - cell [ref=f1e1344]:
+              - code [ref=f1e1345]: powered_bonus
+            - cell "60" [ref=f1e1346]
+          - row [ref=f1e1347]:
+            - cell [ref=f1e1348]:
+              - code [ref=f1e1349]: region_growth_percent_per_year
+            - cell "30" [ref=f1e1350]
+          - row [ref=f1e1351]:
+            - cell [ref=f1e1352]:
+              - code [ref=f1e1353]: residents_per_100_commercial_jobs
+            - cell "300" [ref=f1e1354]
+          - row [ref=f1e1355]:
+            - cell [ref=f1e1356]:
+              - code [ref=f1e1357]: residents_per_100_industrial_jobs
+            - cell "220" [ref=f1e1358]
+          - row [ref=f1e1359]:
+            - cell [ref=f1e1360]:
+              - code [ref=f1e1361]: residents_per_100_office_jobs
+            - cell "450" [ref=f1e1362]
+          - row [ref=f1e1363]:
+            - cell [ref=f1e1364]:
+              - code [ref=f1e1365]: residents_per_level
+            - cell "12" [ref=f1e1366]
+          - row [ref=f1e1367]:
+            - cell [ref=f1e1368]:
+              - code [ref=f1e1369]: river_bonus
+            - cell "120" [ref=f1e1370]
+          - row [ref=f1e1371]:
+            - cell [ref=f1e1372]:
+              - code [ref=f1e1373]: river_radius
+            - cell "3" [ref=f1e1374]
+          - row [ref=f1e1375]:
+            - cell [ref=f1e1376]:
+              - code [ref=f1e1377]: road_access_bonus
+            - cell "60" [ref=f1e1378]
+          - row [ref=f1e1379]:
+            - cell [ref=f1e1380]:
+              - code [ref=f1e1381]: road_access_radius
+            - cell "2" [ref=f1e1382]
+          - row [ref=f1e1383]:
+            - cell [ref=f1e1384]:
+              - code [ref=f1e1385]: score_land_value_factor
+            - cell "20" [ref=f1e1386]
+          - row [ref=f1e1387]:
+            - cell [ref=f1e1388]:
+              - code [ref=f1e1389]: service_bonus
+            - cell "30" [ref=f1e1390]
+          - row [ref=f1e1391]:
+            - cell [ref=f1e1392]:
+              - code [ref=f1e1393]: starting_treasury
+            - cell "2,000,000" [ref=f1e1394]
+          - row [ref=f1e1395]:
+            - cell [ref=f1e1396]:
+              - code [ref=f1e1397]: street_cost
+            - cell "1,000" [ref=f1e1398]
+          - row [ref=f1e1399]:
+            - cell [ref=f1e1400]:
+              - code [ref=f1e1401]: street_upkeep
+            - cell "1" [ref=f1e1402]
+          - row [ref=f1e1403]:
+            - cell [ref=f1e1404]:
+              - code [ref=f1e1405]: tax_demand_penalty
+            - cell "4" [ref=f1e1406]
+          - row [ref=f1e1407]:
+            - cell [ref=f1e1408]:
+              - code [ref=f1e1409]: tax_divisor
+            - cell "1,500" [ref=f1e1410]
+          - row [ref=f1e1411]:
+            - cell [ref=f1e1412]:
+              - code [ref=f1e1413]: ticks_per_month
+            - cell "30" [ref=f1e1414]
+          - row [ref=f1e1415]:
+            - cell [ref=f1e1416]:
+              - code [ref=f1e1417]: traffic_divisor
+            - cell "20" [ref=f1e1418]
+          - row [ref=f1e1419]:
+            - cell [ref=f1e1420]:
+              - code [ref=f1e1421]: traffic_pollution_divisor
+            - cell "3" [ref=f1e1422]
+          - row [ref=f1e1423]:
+            - cell [ref=f1e1424]:
+              - code [ref=f1e1425]: traffic_radius
+            - cell "3" [ref=f1e1426]
+          - row [ref=f1e1427]:
+            - cell [ref=f1e1428]:
+              - code [ref=f1e1429]: traffic_weight
+            - cell "1" [ref=f1e1430]
+          - row [ref=f1e1431]:
+            - cell [ref=f1e1432]:
+              - code [ref=f1e1433]: water_free_levels
+            - cell "1" [ref=f1e1434]
+          - row [ref=f1e1435]:
+            - cell [ref=f1e1436]:
+              - code [ref=f1e1437]: water_pipe_cost
+            - cell "500" [ref=f1e1438]
+          - row [ref=f1e1439]:
+            - cell [ref=f1e1440]:
+              - code [ref=f1e1441]: water_pipe_upkeep
+            - cell "1" [ref=f1e1442]
+          - row [ref=f1e1443]:
+            - cell [ref=f1e1444]:
+              - code [ref=f1e1445]: watered_bonus
+            - cell "60" [ref=f1e1446]
+          - row [ref=f1e1447]:
+            - cell [ref=f1e1448]:
+              - code [ref=f1e1449]: workers_per_100_jobs
+            - cell "130" [ref=f1e1450]
+          - row [ref=f1e1451]:
+            - cell [ref=f1e1452]:
+              - code [ref=f1e1453]: zone_cost
+            - cell "1,000" [ref=f1e1454]
+  - contentinfo [ref=f1e1455]:
+    - generic [ref=f1e1456]:
+      - generic [ref=f1e1457]: Parcelspedia · generated from the game's balance file
+      - generic [ref=f1e1458]:
+        - link "Home" [ref=f1e1459] [cursor=pointer]:
+          - /url: ./
+        - text: ·
+        - link "Manual" [ref=f1e1460] [cursor=pointer]:
+          - /url: manual.html
+        - text: ·
+        - link "Assets" [ref=f1e1461] [cursor=pointer]:
+          - /url: assets.html

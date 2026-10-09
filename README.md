@@ -87,7 +87,8 @@ through the Meshy API (`MESHY_API_KEY`), and `--readme` rebuilds the list from
 ## Releasing
 
 Push a `v*` tag. `.github/workflows/release.yml` builds Windows, macOS and Linux
-archives and attaches them to the GitHub release.
+archives and attaches them to the GitHub release. To add binaries to an existing
+tag, run the workflow by hand: `gh workflow run release.yml -f tag=v0.2.0`.
 
 ## Design notes
 

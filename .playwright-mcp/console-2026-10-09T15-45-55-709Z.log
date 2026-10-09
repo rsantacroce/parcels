@@ -1,0 +1,3 @@
+[     170ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/favicon.ico:0
+[     331ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://raw.githubusercontent.com/rsantacroce/parcels/main/assets/catalog.json:0
+[    4278ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://api.github.com/repos/rsantacroce/parcels/releases/latest:0

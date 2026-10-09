@@ -5,6 +5,14 @@ deterministic simulation; the map is split into parcels, each with its own owner
 and treasury. Roads, power and water cross borders, so neighbours trade and
 affect one another's land value.
 
+**Website, manual and downloads:** https://rsantacroce.github.io/parcels-site/ ·
+[latest release](https://github.com/rsantacroce/parcels/releases/latest)
+
+Pre-built binaries for Windows, macOS (Apple Silicon) and Linux are attached to
+each release. Unpack the archive and run `parcels` from inside its folder, so
+it finds `config/balance.ron`. On macOS, clear the download quarantine first:
+`xattr -dr com.apple.quarantine parcels-*`.
+
 ## Run
 
 ```sh
@@ -67,6 +75,19 @@ Balance constants live in `config/balance.ron` (money in cents, land value
 with the rules it was played under. `cargo run -p parcels_sim --example headless
 --release` runs an all-AI game and prints yearly stats and an ASCII map, which is
 handy when tuning.
+
+## Assets
+
+The world is drawn procedurally today. [`assets/`](assets/README.md) lists every
+3D model that could replace that geometry, with sizes and a prompt for
+[Meshy](https://www.meshy.ai) text-to-3D. `python3 tools/meshy.py` generates them
+through the Meshy API (`MESHY_API_KEY`), and `--readme` rebuilds the list from
+`assets/catalog.json`.
+
+## Releasing
+
+Push a `v*` tag. `.github/workflows/release.yml` builds Windows, macOS and Linux
+archives and attaches them to the GitHub release.
 
 ## Design notes
 

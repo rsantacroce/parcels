@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "game_version": "0.2.0",
+  "units": "metres; one map tile is 10 x 10 m; Y is up; the model's origin sits at the centre of its footprint on the ground",
+  "style": "Stylized low-poly 3D game asset for a cozy modern city-builder. Clean chunky shapes, slightly toy-like proportions, flat matte colours with a subtle hand-painted texture, readable from a high three-quarter camera. One isolated object, centred, standing on a flat base. No surrounding terrain, no text, no logos, no people.",
+  "texture_style": "Soft matte hand-painted colours, gentle ambient occlusion, no baked shadows on the ground, no text or logos.",
+  "groups": [
+    {
+      "id": "residential",
+      "name": "Residential zone",
+      "note": "Grows by itself on green zones. Low density stops at level 3, high density goes to level 6. The building faces the road on its front (-Z) side.",
+      "items": [
+        {
+          "id": "res_cottage", "name": "Cottage (level 1)", "footprint_tiles": 1, "footprint_m": [6, 5.5], "height_m": 5.6, "variants": 3,
+          "prompt": "A small one-storey suburban cottage with cream walls, a red gable roof with a short overhang, two small square windows per wall, a front door, and a small round garden tree beside it."
+        },
+        {
+          "id": "res_house", "name": "Family house (low density, level 2)", "footprint_tiles": 1, "footprint_m": [7, 6.6], "height_m": 8.6, "variants": 3,
+          "prompt": "A two-storey detached family house, pastel rendered walls, dark brown pitched gable roof, regular grid of white-framed windows, a porch over the front door, compact box shape."
+        },
+        {
+          "id": "res_terrace", "name": "Townhouse terrace (low density, level 3)", "footprint_tiles": 1, "footprint_m": [8.8, 7.4], "height_m": 9.6, "variants": 2,
+          "prompt": "A row of three joined three-storey townhouses with a flat roof and a slightly darker parapet, each with its own front door and tall windows, alternating cream, pale pink and sage facades."
+        },
+        {
+          "id": "res_walkup", "name": "Brick walk-up (high density, levels 2-3)", "footprint_tiles": 1, "footprint_m": [8.4, 8], "height_m": 16, "variants": 2,
+          "prompt": "A three-to-four storey red-brick apartment walk-up filling its square lot, flat roof with a darker coping, a regular grid of tall windows on every face, a simple entrance with steps at the front."
+        },
+        {
+          "id": "res_tower", "name": "Apartment tower (high density, levels 4-6)", "footprint_tiles": 1, "footprint_m": [7.6, 7.6], "height_m": 60, "variants": 3,
+          "prompt": "A slender residential apartment tower, pale concrete with a dense grid of windows and small balconies, a setback upper storey and a boxy rooftop plant room. Square footprint, very tall and narrow."
+        }
+      ]
+    },
+    {
+      "id": "commercial",
+      "name": "Commercial zone",
+      "note": "Shops up to level 3, glass towers on dense lots from level 4.",
+      "items": [
+        {
+          "id": "com_shop", "name": "Corner shop (levels 1-3)", "footprint_tiles": 1, "footprint_m": [8.8, 7.6], "height_m": 11, "variants": 3,
+          "prompt": "A small high-street shop building, one to three storeys, a wide glowing shop window across the ground floor, a coloured striped awning over it, flat roof with a box-shaped illuminated sign on top."
+        },
+        {
+          "id": "com_tower", "name": "Commercial tower (dense, levels 4-6)", "footprint_tiles": 1, "footprint_m": [8.4, 8.4], "height_m": 62, "variants": 2,
+          "prompt": "A modern glass commercial skyscraper on a wider two-storey podium, blue-grey metal frame with continuous horizontal glass bands on every floor, a glowing coloured box on the flat roof. Square footprint, tall."
+        }
+      ]
+    },
+    {
+      "id": "industrial",
+      "name": "Industrial zone",
+      "items": [
+        {
+          "id": "ind_workshop", "name": "Workshop (low density)", "footprint_tiles": 1, "footprint_m": [8.8, 7], "height_m": 12, "variants": 2,
+          "prompt": "A small industrial workshop, tan corrugated-metal shed with a sawtooth roof of three skylight ridges, one brick smokestack with a red band at the top, a stack of wooden crates in the yard."
+        },
+        {
+          "id": "ind_factory", "name": "Heavy factory (dense, level 3+)", "footprint_tiles": 1, "footprint_m": [8.8, 9], "height_m": 25, "variants": 2,
+          "prompt": "A heavy-industry factory hall, tall grey corrugated building with a sawtooth roof, three tapering concrete smokestacks of different heights with red bands near the top, and a white cylindrical storage tank beside it."
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "name": "Office zone",
+      "items": [
+        {
+          "id": "off_block", "name": "Office block (levels 1-3)", "footprint_tiles": 1, "footprint_m": [8, 8], "height_m": 20, "variants": 2,
+          "prompt": "A mid-rise modern office block, dark steel-blue frame with ribbon windows wrapping every floor, flat roof with a thin darker coping. Square footprint, two to six storeys."
+        },
+        {
+          "id": "off_skyscraper", "name": "Office skyscraper (levels 4-6)", "footprint_tiles": 1, "footprint_m": [8, 8], "height_m": 90, "variants": 2,
+          "prompt": "A tiered glass office skyscraper: a tall square base and a narrower upper tier, glass curtain walls with a floor grid, topped either with a pointed pyramid crown or a slim antenna mast with a red warning light."
+        }
+      ]
+    },
+    {
+      "id": "power",
+      "name": "Power",
+      "items": [
+        {
+          "id": "coal_plant", "name": "Coal plant", "footprint_tiles": 2, "footprint_m": [20, 20], "height_m": 28,
+          "prompt": "A compact coal power station on a concrete pad: two grey hyperbolic cooling towers at the back, a red-brick turbine hall with tall windows at the front, one tall thin chimney, and a black coal heap."
+        },
+        {
+          "id": "gas_plant", "name": "Gas plant", "footprint_tiles": 2, "footprint_m": [20, 20], "height_m": 18,
+          "prompt": "A clean modern gas-fired power plant on a concrete pad: a long light-grey turbine hall with two slim exhaust stacks on its roof, and three white round gas storage tanks in a row at the front."
+        },
+        {
+          "id": "wind_turbine_tower", "name": "Wind turbine (tower and nacelle)", "footprint_tiles": 1, "footprint_m": [4, 4], "height_m": 31,
+          "prompt": "A white wind turbine tower: a tall tapering cylindrical mast on a small square concrete base with a boxy nacelle on top. No blades: the rotor is a separate model."
+        },
+        {
+          "id": "wind_turbine_rotor", "name": "Wind turbine rotor (animated)", "footprint_tiles": 0, "footprint_m": [26, 2], "height_m": 26,
+          "prompt": "A white three-bladed wind turbine rotor with a rounded hub, blades evenly spaced at 120 degrees, flat and facing forward. Rotor only, no tower."
+        },
+        {
+          "id": "solar_farm", "name": "Solar farm", "footprint_tiles": 2, "footprint_m": [20, 20], "height_m": 2,
+          "prompt": "A small solar farm: ten rows of dark blue tilted photovoltaic panels on thin metal legs, arranged in two columns on a square patch of dry grass with gravel paths between them."
+        },
+        {
+          "id": "nuclear_plant", "name": "Nuclear plant", "footprint_tiles": 3, "footprint_m": [30, 30], "height_m": 24,
+          "prompt": "A nuclear power station on a concrete pad: two large pale hyperbolic cooling towers, a white cylindrical reactor containment building with a domed top, and a grey rectangular turbine hall with a band of windows."
+        }
+      ]
+    },
+    {
+      "id": "water",
+      "name": "Water",
+      "items": [
+        {
+          "id": "water_pump", "name": "Water pump", "footprint_tiles": 1, "footprint_m": [10, 10], "height_m": 5.6,
+          "prompt": "A small water pumping station on a concrete pad: a pale blue pump house with a darker blue gable roof, and a rectangular open reservoir pool of clear blue water beside it."
+        },
+        {
+          "id": "water_tower", "name": "Water tower", "footprint_tiles": 1, "footprint_m": [7, 7], "height_m": 20,
+          "prompt": "A classic water tower: a light-blue cylindrical steel tank with a shallow conical roof, raised high on four slightly splayed grey steel legs with cross-bracing."
+        },
+        {
+          "id": "water_treatment", "name": "Water treatment", "footprint_tiles": 2, "footprint_m": [20, 20], "height_m": 6,
+          "prompt": "A water treatment works on a concrete pad: three round concrete settling tanks filled with blue-green water, and a white single-storey control building with a band of windows and a blue roof."
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "name": "Services",
+      "items": [
+        {
+          "id": "police_station", "name": "Police station", "footprint_tiles": 1, "footprint_m": [8, 7.5], "height_m": 12,
+          "prompt": "A two-storey police station, pale blue-grey walls with a dark blue band around the top of the walls, rows of windows, a flagpole with a blue flag on the roof corner, and a blue lamp by the entrance."
+        },
+        {
+          "id": "fire_station", "name": "Fire station", "footprint_tiles": 1, "footprint_m": [8, 7.5], "height_m": 12,
+          "prompt": "A two-storey red-brick fire station with a white band around the top, a large white roller door for the fire engine on the ground floor, upstairs windows, and a flagpole with a red flag on the roof corner."
+        },
+        {
+          "id": "clinic", "name": "Clinic", "footprint_tiles": 1, "footprint_m": [8, 7.5], "height_m": 8.2,
+          "prompt": "A small two-storey medical clinic, clean white walls with a red band around the top, rows of windows, and a red cross sign lying on the flat roof."
+        },
+        {
+          "id": "hospital", "name": "Hospital", "footprint_tiles": 2, "footprint_m": [16, 16], "height_m": 25,
+          "prompt": "A white modern hospital: a wide two-storey base building with a narrower six-storey tower rising from its centre, regular window grid, and a large red cross helipad marking on the tower roof."
+        },
+        {
+          "id": "school", "name": "School", "footprint_tiles": 2, "footprint_m": [18, 18], "height_m": 9.2,
+          "prompt": "An L-shaped two-storey red-brick school with a dark grey pitched roof, many windows, a flagpole with a blue flag, and a small sports pitch with a red running track filling the inside corner of the L."
+        },
+        {
+          "id": "university", "name": "University", "footprint_tiles": 3, "footprint_m": [28, 28], "height_m": 28,
+          "prompt": "A sandstone university campus: three connected three-storey stone buildings with green-grey pitched roofs forming a U around a lawn quadrangle, and a tall square clock tower with a pyramid roof and a lit clock face."
+        }
+      ]
+    },
+    {
+      "id": "parks",
+      "name": "Parks",
+      "items": [
+        {
+          "id": "park", "name": "Park", "footprint_tiles": 1, "footprint_m": [10, 10], "height_m": 7,
+          "prompt": "A small square neighbourhood park on bright green lawn: three round and conical trees, a sandy footpath straight across the middle, and a wooden bench."
+        },
+        {
+          "id": "plaza", "name": "Plaza", "footprint_tiles": 1, "footprint_m": [10, 10], "height_m": 4,
+          "prompt": "A square paved town plaza in warm beige stone with a round shallow fountain basin in the centre and a small spout column, and a small tree in each of the four corners."
+        },
+        {
+          "id": "playground", "name": "Playground", "footprint_tiles": 1, "footprint_m": [8, 8], "height_m": 4,
+          "prompt": "A children's playground on a square of soft sand: a red climbing tower with a blue pointed roof, a yellow slide coming down from it, a grey metal swing frame, and one small tree."
+        },
+        {
+          "id": "sports_field", "name": "Sports field", "footprint_tiles": 2, "footprint_m": [20, 20], "height_m": 13,
+          "prompt": "A square grass sports pitch with white boundary and halfway lines, a small white goal at each end, and four tall floodlight masts at the corners."
+        },
+        {
+          "id": "stadium", "name": "Stadium", "footprint_tiles": 3, "footprint_m": [28, 28], "height_m": 26,
+          "prompt": "A compact open-air football stadium: four stepped grandstands with coloured seats enclosing a green pitch, light grey concrete outer walls, and four tall floodlight towers at the corners."
+        }
+      ]
+    },
+    {
+      "id": "landmarks",
+      "name": "Landmarks",
+      "items": [
+        {
+          "id": "town_hall", "name": "Town hall", "footprint_tiles": 2, "footprint_m": [16, 14], "height_m": 23,
+          "prompt": "A neoclassical town hall in pale cream stone: a two-storey block with a row of six white columns across the front portico, a round drum on the roof topped by a green copper dome and a flagpole with a red flag."
+        },
+        {
+          "id": "monument", "name": "Monument", "footprint_tiles": 1, "footprint_m": [9, 9], "height_m": 19,
+          "prompt": "A tall white stone obelisk monument with a pyramid tip, standing on a low square stepped plinth in the middle of a small paved square."
+        },
+        {
+          "id": "airport", "name": "Airport", "footprint_tiles": 4, "footprint_m": [38, 38], "height_m": 23,
+          "prompt": "A small regional airport: a dark asphalt runway with white centre dashes along one side, a grey apron, a long low glass-fronted terminal building, and a slim control tower with a glass cab on top."
+        }
+      ]
+    },
+    {
+      "id": "props",
+      "name": "Props and street life",
+      "note": "Small, repeated many times, so keep them very low-poly (target 300-1500 triangles).",
+      "items": [
+        {
+          "id": "tree_broadleaf", "name": "Broadleaf tree", "footprint_tiles": 0, "footprint_m": [3, 3], "height_m": 6, "variants": 2, "polycount": 600,
+          "prompt": "A stylised round broadleaf tree with a short brown trunk and a puffy, chunky green canopy."
+        },
+        {
+          "id": "tree_conifer", "name": "Conifer", "footprint_tiles": 0, "footprint_m": [2.5, 2.5], "height_m": 8, "variants": 2, "polycount": 500,
+          "prompt": "A stylised conifer tree, a stacked cone of dark green layers on a short brown trunk."
+        },
+        {
+          "id": "street_lamp", "name": "Street lamp", "footprint_tiles": 0, "footprint_m": [1, 1.5], "height_m": 5, "polycount": 300,
+          "prompt": "A simple modern street lamp: a slim dark grey pole with a short arm and a flat lamp head."
+        },
+        {
+          "id": "power_pole", "name": "Power pole", "footprint_tiles": 0, "footprint_m": [2, 0.5], "height_m": 9, "polycount": 300,
+          "prompt": "A wooden utility power pole with one cross-arm and three small insulators on top. No wires."
+        },
+        {
+          "id": "pylon", "name": "Pylon (lines over water)", "footprint_tiles": 0, "footprint_m": [4, 4], "height_m": 16, "polycount": 1200,
+          "prompt": "A small steel lattice electricity pylon with two cross-arms and insulators. No wires."
+        },
+        {
+          "id": "car", "name": "Car", "footprint_tiles": 0, "footprint_m": [4.2, 1.8], "height_m": 1.7, "variants": 3, "polycount": 1000,
+          "prompt": "A small generic hatchback car, rounded toy-like shape, white body (it gets re-tinted in game), dark windows, black wheels. Facing along its length."
+        },
+        {
+          "id": "bus", "name": "City bus", "footprint_tiles": 0, "footprint_m": [10, 2.4], "height_m": 3, "polycount": 1500,
+          "prompt": "A single-deck city bus, white body with a continuous dark window band along both sides, black wheels."
+        },
+        {
+          "id": "pedestrian", "name": "Pedestrian", "footprint_tiles": 0, "footprint_m": [0.5, 0.35], "height_m": 1.75, "variants": 2, "polycount": 400,
+          "prompt": "A tiny stylised standing person, simple blocky body, white shirt (re-tinted in game), dark trousers, arms at the sides."
+        },
+        {
+          "id": "airplane", "name": "Parked airliner", "footprint_tiles": 0, "footprint_m": [12, 12], "height_m": 5, "polycount": 1500,
+          "prompt": "A small white twin-engine passenger airliner with a red tail fin, landing gear down, parked."
+        },
+        {
+          "id": "for_sale_sign", "name": "Zoned lot sign", "footprint_tiles": 0, "footprint_m": [1, 0.2], "height_m": 1.6, "polycount": 100,
+          "prompt": "A small wooden post with a plain square white sign board on top (re-tinted in zone colour in game)."
+        },
+        {
+          "id": "rubble", "name": "Burnt rubble", "footprint_tiles": 1, "footprint_m": [8, 8], "height_m": 1.5, "polycount": 800,
+          "prompt": "A low heap of charred dark grey rubble, broken concrete blocks and burnt beams on a square lot after a fire."
+        }
+      ]
+    }
+  ],
+  "procedural": [
+    "Ground, river and lake water, banks and the earth skirt around the map edge",
+    "Streets, avenues, bridges, sidewalks, zebra crossings and lane markings (they join up tile by tile)",
+    "Power line wires and water pipes",
+    "Window glow at night, overlays, the build cursor and parcel borders",
+    "Fire flames and all sound (synthesised in code)"
+  ]
+}

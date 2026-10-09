@@ -1,2 +1,5 @@
 target/
 saves/
+# Generated Meshy models stay local until the renderer loads them.
+assets/models/**/*.glb
+assets/models/**/*.json

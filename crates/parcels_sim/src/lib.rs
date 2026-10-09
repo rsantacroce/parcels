@@ -6,6 +6,7 @@
 //! - no `HashMap`/`HashSet` iteration (use `Vec`, `BTreeMap`, or sorted output).
 
 pub mod ai;
+pub mod catalog;
 pub mod command;
 pub mod config;
 pub mod hash;
@@ -18,10 +19,11 @@ pub mod session;
 pub mod state;
 pub mod systems;
 
+pub use catalog::{Building, BuildingStats, Category, Service};
 pub use command::{Area, Command, CommandKind, Rejection};
 pub use config::Config;
 pub use ids::{ParcelId, PlayerId};
-pub use map::{Buildable, Map, Pos, Rect, Terrain, Tile, TileKind, Zone};
+pub use map::{Buildable, Density, Map, Pos, Rect, Road, Terrain, TerrainSettings, Tile, TileKind, Zone};
 pub use player::{AiStrategy, Controller, Parcel, Player, PlayerStats, Utility};
 pub use replay::Replay;
 pub use session::Session;

@@ -31,23 +31,36 @@ fn conducts(t: &Tile, u: Utility) -> bool {
 }
 
 fn need(state: &GameState, t: &Tile, u: Utility) -> u32 {
-    match u {
-        Utility::Power if t.kind.is_zone() => 1 + t.level as u32,
-        Utility::Power if t.kind == TileKind::WaterPump => state.config.pump_power_draw,
-        Utility::Water if t.kind.is_zone() => t.level as u32,
+    match (u, t.kind) {
+        (Utility::Power, TileKind::Zone(..)) => 1 + t.level as u32,
+        (Utility::Power, TileKind::Building(b)) if t.is_anchor() => state.config.building(b).power_draw,
+        (Utility::Water, TileKind::Zone(..)) => t.level as u32,
         _ => 0,
     }
 }
 
+/// Does this tile produce water (and so need its power before anyone else)?
+fn makes_water(state: &GameState, t: &Tile) -> bool {
+    t.kind.building().is_some_and(|b| state.config.building(b).water_supply > 0)
+}
+
 fn supply(state: &GameState, idx: usize, u: Utility) -> u32 {
     let t = &state.map.tiles[idx];
-    match (u, t.kind) {
-        (Utility::Power, TileKind::PowerPlant) => state.config.power_plant_capacity,
-        (Utility::Water, TileKind::WaterPump) if t.powered => {
-            let by_river = state.map.neighbors4(idx).any(|n| state.map.tiles[n].terrain == Terrain::Water);
-            state.config.water_pump_capacity + if by_river { state.config.water_pump_river_bonus } else { 0 }
+    let TileKind::Building(b) = t.kind else { return 0 };
+    if !t.is_anchor() {
+        return 0;
+    }
+    let stats = state.config.building(b);
+    match u {
+        Utility::Power => stats.power_supply,
+        // Water producers pump nothing without power.
+        Utility::Water if stats.water_supply > 0 && (t.powered || stats.power_draw == 0) => {
+            let fp = state.map.footprint_at(state.map.pos(idx));
+            let by_river = stats.river_bonus > 0
+                && fp.iter().any(|p| state.map.neighbors4(state.map.idx(p)).any(|n| state.map.tiles[n].terrain == Terrain::Water));
+            stats.water_supply + if by_river { stats.river_bonus } else { 0 }
         }
-        _ => 0,
+        Utility::Water => 0,
     }
 }
 
@@ -151,13 +164,13 @@ fn settle_network(state: &mut GameState, u: Utility, members: &[usize]) {
         }
     }
 
-    // Hand out each owner's granted units tile by tile. Pumps go first so a short
-    // network keeps its water running.
+    // Hand out each owner's granted units tile by tile. Water producers go first
+    // so a short network keeps its water running.
     let mut budget = granted;
     for pumps_pass in [true, false] {
         for &i in members {
             let t = &state.map.tiles[i];
-            if (t.kind == TileKind::WaterPump) != pumps_pass {
+            if makes_water(state, t) != pumps_pass {
                 continue;
             }
             let Some(o) = state.owner_of_idx(i) else { continue };

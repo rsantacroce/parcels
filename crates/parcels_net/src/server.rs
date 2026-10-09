@@ -9,7 +9,8 @@ use renet_netcode::{NetcodeServerTransport, ServerAuthentication, ServerConfig};
 
 use parcels_sim::state::ai_name;
 use parcels_sim::{
-    AiStrategy, CommandKind, Config, Controller, GameState, NewGame, PlayerId, PlayerSetup, Session, TickReport,
+    AiStrategy, CommandKind, Config, Controller, GameState, NewGame, PlayerId, PlayerSetup, Session, TerrainSettings,
+    TickReport,
 };
 
 use crate::{decode, encode, now, ClientMsg, LobbyEntry, ServerMsg, HASH_INTERVAL, PROTOCOL_ID};
@@ -20,7 +21,9 @@ pub struct ServerOptions {
     /// Total parcels / players (2..=8). Unfilled seats go to the AI.
     pub slots: u8,
     pub seed: u64,
+    /// Balance, including the map size.
     pub config: Config,
+    pub terrain: TerrainSettings,
     /// Name of the local player when the host also plays; `None` = dedicated.
     pub host_name: Option<String>,
 }
@@ -281,7 +284,12 @@ impl HostServer {
             players.push(PlayerSetup { name: ai_name(ai), controller: Controller::Ai(strategy) });
             ai += 1;
         }
-        let state = GameState::new(&NewGame { seed: self.opts.seed, config: self.opts.config.clone(), players });
+        let state = GameState::new(&NewGame {
+            seed: self.opts.seed,
+            config: self.opts.config.clone(),
+            players,
+            terrain: self.opts.terrain,
+        });
         self.session = Some(Session::new(state));
         for id in ids {
             if self.clients[&id].player.is_some() {

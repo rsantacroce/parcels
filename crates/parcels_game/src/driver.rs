@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use parcels_net::{HostServer, NetClient};
-use parcels_sim::{CommandKind, Controller, GameState, PlayerId, Rejection, Session, TickReport};
+use parcels_sim::{AiStrategy, CommandKind, Config, Controller, GameState, NewGame, PlayerId, PlayerSetup, Rejection, Session, TerrainSettings, TickReport};
 
 pub enum Mode {
     /// Everything in-process: solo, hot-seat, or versus AI.
@@ -27,6 +27,10 @@ pub struct Driver {
     pub paused: bool,
     /// Ticks per second at 1x.
     pub speed: u32,
+    /// The AI-only city behind the title screen; never saved.
+    pub showcase: bool,
+    /// Name this game was last saved or loaded under.
+    pub save_name: Option<String>,
 }
 
 /// Feedback from ticks applied this frame, for messages and sound.
@@ -37,7 +41,33 @@ pub struct TickFeed {
 
 impl Driver {
     pub fn new(mode: Mode) -> Self {
-        Self { mode, generation: 0, paused: false, speed: 4 }
+        Self { mode, generation: 0, paused: false, speed: 4, showcase: false, save_name: None }
+    }
+
+    /// A small all-AI city, already a few years old, to look at behind the menu.
+    pub fn showcase(seed: u64) -> Self {
+        let mut config = Config::default();
+        config.map_width = 64;
+        config.map_height = 48;
+        config.game_length_ticks = 0;
+        config.fire_chance_per_million = 0;
+        let players = (0..4)
+            .map(|i| PlayerSetup {
+                name: parcels_sim::state::ai_name(i),
+                controller: Controller::Ai(if i % 2 == 0 { AiStrategy::UtilityBaron } else { AiStrategy::Developer }),
+            })
+            .collect();
+        let terrain = TerrainSettings { rivers: 1, lakes: 1, forest: 2 };
+        let mut session = Session::new(GameState::new(&NewGame { seed, config, players, terrain }));
+        for _ in 0..1500 {
+            session.tick();
+        }
+        // Drop the replay log: nobody will export it, and it only grows.
+        let session = Session::new(session.state);
+        let mut d = Self::new(Mode::Local(session));
+        d.showcase = true;
+        d.speed = 8;
+        d
     }
 
     pub fn state(&self) -> Option<&GameState> {

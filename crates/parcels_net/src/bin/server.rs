@@ -2,7 +2,7 @@
 //! command relay.
 //!
 //! parcels-server [--port 5757] [--slots 4] [--wait 1] [--seed N] [--tps 4]
-//!                [--config config/balance.ron] [--load save.ron]
+//!                [--map 128x96] [--config config/balance.ron] [--load save.ron]
 //!
 //! Waits in the lobby until `--wait` players have connected, then starts; empty
 //! seats are run by the AI and later joiners take them over.
@@ -10,7 +10,7 @@
 use std::time::{Duration, Instant};
 
 use parcels_net::{HostServer, ServerOptions, DEFAULT_PORT};
-use parcels_sim::{Config, GameState};
+use parcels_sim::{Config, GameState, Map};
 
 fn arg<T: std::str::FromStr>(args: &[String], name: &str) -> Option<T> {
     args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok())
@@ -26,16 +26,23 @@ fn main() -> std::io::Result<()> {
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
     });
     let config_path: String = arg(&args, "--config").unwrap_or_else(|| "config/balance.ron".into());
-    let config = match std::fs::read_to_string(&config_path) {
+    let mut config = match std::fs::read_to_string(&config_path) {
         Ok(t) => Config::from_ron(&t).map_err(std::io::Error::other)?,
         Err(_) => Config::default(),
     };
+    if let Some(size) = arg::<String>(&args, "--map") {
+        let (w, h) = size.split_once('x').ok_or_else(|| std::io::Error::other("--map wants WxH, e.g. 128x96"))?;
+        let dim = |v: &str| v.parse::<u16>().map(|n| n.clamp(Map::MIN_SIZE, Map::MAX_SIZE)).map_err(std::io::Error::other);
+        config.map_width = dim(w)?;
+        config.map_height = dim(h)?;
+    }
 
     let mut host = HostServer::bind(ServerOptions {
         bind: format!("0.0.0.0:{port}").parse().unwrap(),
         slots,
         seed,
         config,
+        terrain: Default::default(),
         host_name: None,
     })?;
     if let Some(path) = arg::<String>(&args, "--load") {

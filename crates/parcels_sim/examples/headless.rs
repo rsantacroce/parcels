@@ -1,26 +1,41 @@
 //! Run an all-AI game with no graphics and print a yearly summary.
-//! `cargo run -p parcels_sim --example headless --release -- [seed] [players]`
+//! `cargo run -p parcels_sim --example headless --release -- [seed] [players] [width height]`
 
-use parcels_sim::{fmt_money, AiStrategy, Config, Controller, GameState, NewGame, PlayerSetup, Session};
+use parcels_sim::{fmt_money, AiStrategy, Config, Controller, GameState, NewGame, PlayerSetup, Session, TerrainSettings};
 
 fn main() {
     let mut args = std::env::args().skip(1);
     let seed: u64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(7);
     let n: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(4);
-    let config = std::fs::read_to_string("config/balance.ron")
+    let mut config = std::fs::read_to_string("config/balance.ron")
         .ok()
         .and_then(|t| Config::from_ron(&t).ok())
         .unwrap_or_default();
+    if let (Some(w), Some(h)) = (args.next().and_then(|s| s.parse().ok()), args.next().and_then(|s| s.parse().ok())) {
+        config.map_width = w;
+        config.map_height = h;
+    }
     let players = (0..n)
         .map(|i| PlayerSetup {
             name: parcels_sim::state::ai_name(i),
             controller: Controller::Ai(if i % 2 == 0 { AiStrategy::UtilityBaron } else { AiStrategy::Developer }),
         })
         .collect();
-    let mut s = Session::new(GameState::new(&NewGame { seed, config, players }));
+    let mut s = Session::new(GameState::new(&NewGame { seed, config, players, terrain: TerrainSettings::default() }));
     let tpy = s.state.config.ticks_per_month as u64 * 12;
+    let trace: Option<u8> = std::env::var("AI_TRACE").ok().and_then(|v| v.parse().ok());
     while !s.state.is_over() {
-        s.tick();
+        let r = s.tick();
+        if let Some(who) = trace {
+            for c in r.applied.iter().filter(|c| c.author.0 == who) {
+                let p = &s.state.players[who as usize];
+                let what = match &c.kind {
+                    parcels_sim::CommandKind::Place { area, what, .. } => format!("place {} x{}", what.name(), area.tiles().len()),
+                    k => format!("{k:?}"),
+                };
+                println!("t{:>5} {:>12} pop{:>5} pw {}/{} un{} | {what}", c.tick, fmt_money(p.treasury), p.stats.population, p.stats.power.supply, p.stats.power.demand, p.stats.power.unserved);
+            }
+        }
         if s.state.tick % tpy == 0 || s.state.tick == 60 {
             println!("--- year {} (tick {}) pop {} jobs C{} I{} demand {:?}", s.state.tick / tpy, s.state.tick,
                 s.state.global.population, s.state.global.commercial_jobs, s.state.global.industrial_jobs, s.state.global.demand);
@@ -56,35 +71,49 @@ fn main() {
 
 #[allow(dead_code)]
 pub fn diag(s: &GameState) {
-    use parcels_sim::{TileKind, Zone};
+    use parcels_sim::{Category, Terrain, TileKind, Zone};
     for z in Zone::ALL {
         let mut levels = [0u32; 8];
         let (mut unp, mut unw) = (0, 0);
         for t in &s.map.tiles {
-            if t.kind == z.kind() {
+            if t.kind.zone() == Some(z) {
                 levels[t.level as usize] += 1;
                 if !t.powered { unp += 1 }
                 if !t.watered { unw += 1 }
             }
         }
-        println!("{z:?}: levels {:?} unpowered {unp} unwatered {unw}", &levels[..5]);
+        println!("{z:?}: levels {:?} unpowered {unp} unwatered {unw}", &levels[..7]);
     }
-    let empty_frontage = s.map.tiles.iter().filter(|t| t.kind == TileKind::Empty).count();
-    println!("empty tiles {empty_frontage}, roads {}", s.map.tiles.iter().filter(|t| t.kind == TileKind::Road).count());
-    // ascii map
+    let mut built = std::collections::BTreeMap::new();
+    for t in s.map.tiles.iter().filter(|t| t.is_anchor()) {
+        if let TileKind::Building(b) = t.kind {
+            *built.entry(b.name()).or_insert(0) += 1;
+        }
+    }
+    println!("buildings {built:?}");
+    let empty = s.map.tiles.iter().filter(|t| t.kind == TileKind::Empty).count();
+    println!("empty tiles {empty}, roads {}", s.map.tiles.iter().filter(|t| t.kind.is_road()).count());
     for y in 0..s.map.height {
         let row: String = (0..s.map.width).map(|x| {
             let t = s.map.tile(parcels_sim::Pos::new(x, y));
             match t.kind {
-                TileKind::Empty if t.terrain == parcels_sim::Terrain::Water => '~',
-                TileKind::Empty => if t.wire {'+'} else {'.'},
-                TileKind::Road => '#',
-                TileKind::PowerPlant => 'P',
-                TileKind::WaterPump => 'W',
-                TileKind::Park => 'T',
-                TileKind::Residential => if t.powered {(b'0' + t.level) as char} else {'r'},
-                TileKind::Commercial => if t.powered {(b'a' + t.level) as char} else {'c'},
-                TileKind::Industrial => if t.powered {(b'A' + t.level) as char} else {'i'},
+                TileKind::Empty => match t.terrain {
+                    Terrain::Water => '~',
+                    Terrain::Forest => '^',
+                    Terrain::Land => if t.wire { '+' } else { '.' },
+                },
+                TileKind::Road(_) => '#',
+                TileKind::Building(b) => match b.category() {
+                    Category::Power => 'P',
+                    Category::Water => 'W',
+                    Category::Services => 'S',
+                    Category::Parks => 'T',
+                    _ => 'L',
+                },
+                TileKind::Zone(z, _) => {
+                    let base = [b'0', b'a', b'A', b'o'][z.index()];
+                    if t.powered { (base + t.level) as char } else { ['r', 'c', 'i', 'o'][z.index()] }
+                }
             }
         }).collect();
         println!("{row}");

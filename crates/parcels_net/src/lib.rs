@@ -23,7 +23,7 @@ pub use client::NetClient;
 pub use server::{HostServer, ServerOptions};
 
 /// Bump when the wire format or simulation rules change incompatibly.
-pub const PROTOCOL_ID: u64 = 0x5041_5243_454c_0001;
+pub const PROTOCOL_ID: u64 = 0x5041_5243_454c_0002;
 pub const DEFAULT_PORT: u16 = 5757;
 pub const HASH_INTERVAL: u64 = 30;
 
@@ -64,6 +64,15 @@ pub fn decode<'a, T: Deserialize<'a>>(bytes: &'a [u8]) -> Option<T> {
 /// Wall-clock time for the transport layer only. Never reaches the simulation.
 pub(crate) fn now() -> std::time::Duration {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default()
+}
+
+/// This machine's address on the local network, for telling a friend where to
+/// connect. Connecting a UDP socket sends nothing; it just picks the route.
+pub fn lan_ip() -> Option<std::net::IpAddr> {
+    let s = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    s.connect("8.8.8.8:80").ok()?;
+    let ip = s.local_addr().ok()?.ip();
+    (!ip.is_unspecified()).then_some(ip)
 }
 
 /// Accept "host", "host:port", or a bare port, defaulting the rest.

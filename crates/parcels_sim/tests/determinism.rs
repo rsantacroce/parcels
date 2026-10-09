@@ -9,7 +9,7 @@ fn ai_game(seed: u64, n: usize) -> GameState {
             controller: Controller::Ai(if i % 2 == 0 { AiStrategy::UtilityBaron } else { AiStrategy::Developer }),
         })
         .collect();
-    GameState::new(&NewGame { seed, config: Config::default(), players })
+    GameState::new(&NewGame { seed, config: Config::default(), players, terrain: TerrainSettings::default() })
 }
 
 fn run_session(seed: u64, ticks: u64) -> (Session, Vec<u64>) {
@@ -71,7 +71,7 @@ fn command_arrival_order_does_not_matter() {
         kind: CommandKind::Place {
             parcel: ParcelId(author),
             area: Area::Tiles(vec![Pos::new(x + author as u16 * 32, 3)]),
-            what: Buildable::Road,
+            what: Buildable::Road(Road::Street),
         },
     };
     let cmds = vec![mk(0, 0, 1), mk(1, 0, 2), mk(0, 1, 3), mk(1, 1, 4)];

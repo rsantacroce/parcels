@@ -2,5 +2,5 @@
 fn main() {
     println!("// Parcels balance constants. Money is in cents; land value is 0..=1000.");
     println!("// Edit and restart (new games only: saves carry their own copy).");
-    println!("{}", parcels_sim::Config::default().to_ron());
+    println!("{}", parcels_sim::Config::default().with_all_buildings().to_ron());
 }

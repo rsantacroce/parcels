@@ -3,9 +3,12 @@
 //!
 //! All values are integers. Money is in cents.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
-use crate::map::Buildable;
+use crate::catalog::{Building, BuildingStats};
+use crate::map::{Buildable, Density, Road, Zone};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -25,45 +28,59 @@ pub struct Config {
     /// Score = treasury + total owned land value * this factor (cents per point).
     pub score_land_value_factor: i64,
 
-    // ---- Costs (cents) ----
-    pub cost: Costs,
-    /// Upkeep per tick, in cents.
-    pub upkeep: Costs,
+    // ---- Costs (cents) and upkeep (cents per tick) ----
+    pub street_cost: i64,
+    pub avenue_cost: i64,
+    pub power_line_cost: i64,
+    pub water_pipe_cost: i64,
+    pub zone_cost: i64,
+    pub dense_zone_cost: i64,
     /// Bridges (road on water) multiply the road cost by this.
     pub bridge_cost_multiplier: i64,
     pub bulldoze_cost: i64,
-
-    // ---- Utilities ----
-    pub power_plant_capacity: u32,
-    pub water_pump_capacity: u32,
-    /// Pumps next to river water pump this much extra.
-    pub water_pump_river_bonus: u32,
-    /// A pump draws this much power and pumps nothing without it.
-    pub pump_power_draw: u32,
-    /// Default price per utility unit per tick, cents, for new players.
+    /// Extra for building on, or bulldozing, woodland.
+    pub clear_forest_cost: i64,
+    pub street_upkeep: i64,
+    pub avenue_upkeep: i64,
+    pub power_line_upkeep: i64,
+    pub water_pipe_upkeep: i64,
+    /// Overrides for building balance. Anything missing uses the built-in default.
+    pub buildings: BTreeMap<Building, BuildingStats>,
+    /// Default price per utility unit per tick, cents, offered by the AI.
     pub default_utility_price: u32,
 
     // ---- Zones ----
-    pub max_level: u8,
+    pub low_density_max_level: u8,
+    pub high_density_max_level: u8,
     pub residents_per_level: u16,
     pub commercial_jobs_per_level: u16,
     pub industrial_jobs_per_level: u16,
+    pub office_jobs_per_level: u16,
     /// Manhattan distance a zone may be from a road to count as accessible.
     pub road_access_radius: u8,
     /// Levels above this need water to grow.
     pub water_free_levels: u8,
+    /// Housing above this level needs a school or university nearby.
+    pub education_free_levels: u8,
+    /// Any zone above this level needs a clinic or hospital nearby.
+    pub health_free_levels: u8,
+    /// Dense zones only grow past the low-density cap on land worth this much.
+    pub dense_min_land_value: u16,
 
     // ---- Demand ----
     /// Baseline "outside world" demand, in population units.
     pub base_residential_demand: i32,
     pub base_commercial_demand: i32,
     pub base_industrial_demand: i32,
+    pub base_office_demand: i32,
     /// Workers wanted per 100 jobs.
     pub workers_per_100_jobs: i32,
     /// Residents needed to support one commercial job (x100).
     pub residents_per_100_commercial_jobs: i32,
     /// Residents needed to support one industrial job (x100).
     pub residents_per_100_industrial_jobs: i32,
+    /// Residents needed to support one office job (x100).
+    pub residents_per_100_office_jobs: i32,
     /// Demand lost per tax point above `neutral_tax_rate`.
     pub tax_demand_penalty: i32,
     pub neutral_tax_rate: u8,
@@ -79,32 +96,47 @@ pub struct Config {
     // ---- Land value (0..=1000) ----
     pub land_value_base: u16,
     pub land_value_max: u16,
-    pub park_bonus: u16,
-    pub park_radius: u8,
     pub river_bonus: u16,
     pub river_radius: u8,
+    pub forest_bonus: u16,
+    pub forest_radius: u8,
     pub commercial_bonus: u16,
     pub commercial_radius: u8,
     pub road_access_bonus: u16,
     pub powered_bonus: u16,
     pub watered_bonus: u16,
+    /// Bonus for each of health and education coverage.
+    pub service_bonus: u16,
     /// Land value lost per point of pollution.
     pub pollution_weight: u16,
     /// Land value lost per point of traffic.
     pub traffic_weight: u16,
+    /// Land value lost per point of crime.
+    pub crime_weight: u16,
     /// Each tick land value moves 1/N of the way toward its target.
     pub land_value_smoothing: u16,
 
-    // ---- Pollution / traffic ----
+    // ---- Pollution / traffic / crime / fire ----
     pub industrial_pollution_per_level: u16,
-    pub power_plant_pollution: u16,
     pub pollution_radius: u8,
     pub traffic_radius: u8,
     /// Divides nearby population+jobs into a road tile's traffic score.
     pub traffic_divisor: u16,
+    /// Avenues carry traffic at this percentage of a street's congestion.
+    pub avenue_traffic_percent: u16,
     pub traffic_pollution_divisor: u16,
     /// Pollution saturates at this value.
     pub pollution_cap: u16,
+    pub crime_radius: u8,
+    /// Divides nearby occupants into crime.
+    pub crime_divisor: u16,
+    /// Police coverage removes this percentage of crime.
+    pub police_crime_reduction_percent: u16,
+    pub crime_cap: u16,
+    /// Per tick, per developed (level 2+) zone tile without fire cover. 0 = no fires.
+    pub fire_chance_per_million: u32,
+    /// Ticks a burnt lot stays rubble before it can regrow.
+    pub fire_rubble_ticks: u8,
 
     // ---- Economy ----
     /// Tax per tick = sum(occupants * land_value) * tax% / this. Industry is
@@ -115,64 +147,39 @@ pub struct Config {
     pub ai_think_interval: u32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Costs {
-    pub road: i64,
-    pub power_line: i64,
-    pub water_pipe: i64,
-    pub power_plant: i64,
-    pub water_pump: i64,
-    pub park: i64,
-    pub residential: i64,
-    pub commercial: i64,
-    pub industrial: i64,
-}
-
-impl Costs {
-    pub fn of(&self, b: Buildable) -> i64 {
-        match b {
-            Buildable::Road => self.road,
-            Buildable::PowerLine => self.power_line,
-            Buildable::WaterPipe => self.water_pipe,
-            Buildable::PowerPlant => self.power_plant,
-            Buildable::WaterPump => self.water_pump,
-            Buildable::Park => self.park,
-            Buildable::Residential => self.residential,
-            Buildable::Commercial => self.commercial,
-            Buildable::Industrial => self.industrial,
-        }
-    }
-}
-
-impl Default for Costs {
-    fn default() -> Self {
-        Self {
-            road: 10_00,
-            power_line: 5_00,
-            water_pipe: 5_00,
-            power_plant: 3_000_00,
-            water_pump: 1_500_00,
-            park: 50_00,
-            residential: 10_00,
-            commercial: 10_00,
-            industrial: 10_00,
-        }
-    }
-}
-
 impl Config {
-    pub fn default_upkeep() -> Costs {
-        Costs {
-            road: 1,
-            power_line: 1,
-            water_pipe: 1,
-            power_plant: 1_00,
-            water_pump: 50,
-            park: 2,
-            residential: 0,
-            commercial: 0,
-            industrial: 0,
+    /// Balance numbers for a building: the override from the config file if any,
+    /// otherwise the built-in default.
+    pub fn building(&self, b: Building) -> BuildingStats {
+        self.buildings.get(&b).copied().unwrap_or_else(|| b.default_stats())
+    }
+
+    /// Cost per tile (zones, roads, overlays) or per building.
+    pub fn cost(&self, b: Buildable) -> i64 {
+        match b {
+            Buildable::Road(Road::Street) => self.street_cost,
+            Buildable::Road(Road::Avenue) => self.avenue_cost,
+            Buildable::PowerLine => self.power_line_cost,
+            Buildable::WaterPipe => self.water_pipe_cost,
+            Buildable::Zone(_, Density::Low) => self.zone_cost,
+            Buildable::Zone(_, Density::High) => self.dense_zone_cost,
+            Buildable::Building(b) => self.building(b).cost,
+        }
+    }
+
+    pub fn max_level(&self, d: Density) -> u8 {
+        match d {
+            Density::Low => self.low_density_max_level,
+            Density::High => self.high_density_max_level,
+        }
+    }
+
+    pub fn per_level(&self, z: Zone) -> u16 {
+        match z {
+            Zone::Residential => self.residents_per_level,
+            Zone::Commercial => self.commercial_jobs_per_level,
+            Zone::Industrial => self.industrial_jobs_per_level,
+            Zone::Office => self.office_jobs_per_level,
         }
     }
 
@@ -183,6 +190,15 @@ impl Config {
 
     pub fn to_ron(&self) -> String {
         ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default()).expect("config serializes")
+    }
+
+    /// Every building's stats spelled out, for writing a complete config file.
+    pub fn with_all_buildings(mut self) -> Self {
+        for b in Building::ALL {
+            let s = self.building(b);
+            self.buildings.insert(b, s);
+        }
+        self
     }
 }
 
@@ -199,30 +215,42 @@ impl Default for Config {
             game_length_ticks: 30 * 12 * 10,
             score_land_value_factor: 20,
 
-            cost: Costs::default(),
-            upkeep: Self::default_upkeep(),
+            street_cost: 10_00,
+            avenue_cost: 25_00,
+            power_line_cost: 5_00,
+            water_pipe_cost: 5_00,
+            zone_cost: 10_00,
+            dense_zone_cost: 25_00,
             bridge_cost_multiplier: 4,
             bulldoze_cost: 1_00,
-
-            power_plant_capacity: 120,
-            water_pump_capacity: 80,
-            water_pump_river_bonus: 60,
-            pump_power_draw: 6,
+            clear_forest_cost: 3_00,
+            street_upkeep: 1,
+            avenue_upkeep: 2,
+            power_line_upkeep: 1,
+            water_pipe_upkeep: 1,
+            buildings: BTreeMap::new(),
             default_utility_price: 4,
 
-            max_level: 4,
+            low_density_max_level: 3,
+            high_density_max_level: 6,
             residents_per_level: 12,
             commercial_jobs_per_level: 8,
             industrial_jobs_per_level: 10,
+            office_jobs_per_level: 10,
             road_access_radius: 2,
             water_free_levels: 1,
+            education_free_levels: 2,
+            health_free_levels: 4,
+            dense_min_land_value: 380,
 
             base_residential_demand: 80,
             base_commercial_demand: 20,
             base_industrial_demand: 80,
+            base_office_demand: 10,
             workers_per_100_jobs: 130,
             residents_per_100_commercial_jobs: 300,
             residents_per_100_industrial_jobs: 220,
+            residents_per_100_office_jobs: 450,
             tax_demand_penalty: 4,
             neutral_tax_rate: 7,
             region_growth_percent_per_year: 30,
@@ -232,26 +260,34 @@ impl Default for Config {
 
             land_value_base: 200,
             land_value_max: 1000,
-            park_bonus: 140,
-            park_radius: 4,
             river_bonus: 120,
             river_radius: 3,
+            forest_bonus: 50,
+            forest_radius: 2,
             commercial_bonus: 40,
             commercial_radius: 3,
             road_access_bonus: 60,
             powered_bonus: 60,
             watered_bonus: 60,
+            service_bonus: 30,
             pollution_weight: 1,
             traffic_weight: 1,
+            crime_weight: 1,
             land_value_smoothing: 6,
 
             industrial_pollution_per_level: 10,
-            power_plant_pollution: 50,
             pollution_radius: 5,
             traffic_radius: 3,
             traffic_divisor: 20,
+            avenue_traffic_percent: 45,
             traffic_pollution_divisor: 3,
             pollution_cap: 300,
+            crime_radius: 3,
+            crime_divisor: 12,
+            police_crime_reduction_percent: 80,
+            crime_cap: 200,
+            fire_chance_per_million: 15,
+            fire_rubble_ticks: 30,
 
             tax_divisor: 1_500,
 

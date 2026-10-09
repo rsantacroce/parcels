@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ids::PlayerId;
+use crate::ids::{ParcelId, PlayerId};
 use crate::map::Rect;
-use crate::ids::ParcelId;
 
 /// Who issues commands for a player. This is the only thing that differs between
 /// single-player, hot-seat, AI and networked play.
@@ -46,8 +45,11 @@ pub struct PlayerStats {
     pub population: u32,
     pub commercial_jobs: u32,
     pub industrial_jobs: u32,
-    /// Per-mille RCI demand, -1000..=1000, as seen by this player.
-    pub demand: [i32; 3],
+    pub office_jobs: u32,
+    /// Jobs in powered plants, services and landmarks.
+    pub public_jobs: u32,
+    /// Per-mille R/C/I/O demand, -1000..=1000, as seen by this player.
+    pub demand: [i32; 4],
     pub taxes: i64,
     pub upkeep: i64,
     /// Net utility trade cash flow (positive = earned).
@@ -56,6 +58,8 @@ pub struct PlayerStats {
     pub water: UtilityLedger,
     pub land_value_total: u64,
     pub developed_tiles: u32,
+    /// Buildings lost to fire since the game began.
+    pub fires: u32,
     pub score: i64,
 }
 

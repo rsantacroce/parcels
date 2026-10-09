@@ -1,6 +1,6 @@
 //! Stage 6: taxes in, upkeep out, utility trades paid, treasuries clamped.
 
-use crate::map::{Terrain, TileKind};
+use crate::map::{Road, Terrain, TileKind, Zone};
 use crate::state::GameState;
 
 pub fn run(state: &mut GameState) {
@@ -8,7 +8,7 @@ pub fn run(state: &mut GameState) {
     let mut taxable = vec![0i64; np];
     let mut upkeep = vec![0i64; np];
     let mut lv_total = vec![0u64; np];
-    let u = &state.config.upkeep;
+    let c = &state.config;
     for i in 0..state.map.len() {
         let Some(o) = state.owner_of_idx(i) else { continue };
         let o = o.index();
@@ -16,25 +16,26 @@ pub fn run(state: &mut GameState) {
         lv_total[o] += t.land_value as u64;
         // Only occupied zones that are actually served pay tax.
         if t.kind.is_zone() && t.powered {
-            let value = if t.kind == TileKind::Industrial { state.config.land_value_base } else { t.land_value };
+            let value = if t.kind.zone() == Some(Zone::Industrial) { c.land_value_base } else { t.land_value };
             taxable[o] += state.occupants(i) as i64 * value as i64;
         }
-        upkeep[o] += match t.kind {
-            TileKind::Empty => 0,
-            TileKind::Road if t.terrain == Terrain::Water => u.road * 2,
-            TileKind::Road => u.road,
-            TileKind::PowerPlant => u.power_plant,
-            TileKind::WaterPump => u.water_pump,
-            TileKind::Park => u.park,
-            TileKind::Residential => u.residential,
-            TileKind::Commercial => u.commercial,
-            TileKind::Industrial => u.industrial,
+        let road = match t.kind {
+            TileKind::Road(Road::Street) => c.street_upkeep,
+            TileKind::Road(Road::Avenue) => c.avenue_upkeep,
+            _ => 0,
         };
+        // Bridges cost double to maintain.
+        upkeep[o] += if t.terrain == Terrain::Water { road * 2 } else { road };
+        if let TileKind::Building(b) = t.kind {
+            if t.is_anchor() {
+                upkeep[o] += c.building(b).upkeep;
+            }
+        }
         if t.wire {
-            upkeep[o] += u.power_line;
+            upkeep[o] += c.power_line_upkeep;
         }
         if t.pipe {
-            upkeep[o] += u.water_pipe;
+            upkeep[o] += c.water_pipe_upkeep;
         }
     }
 

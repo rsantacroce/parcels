@@ -15,3 +15,4 @@ parcels_net.workspace = true
 bevy = { workspace = true, features = ["wav"] }
 bevy_egui.workspace = true
 ron.workspace = true
+serde.workspace = true

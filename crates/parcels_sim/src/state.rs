@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::command::{Command, Rejection};
 use crate::config::Config;
 use crate::ids::{ParcelId, PlayerId};
-use crate::map::{Map, Pos, Rect, Zone};
+use crate::map::{Map, Pos, Rect, TerrainSettings};
 use crate::player::{AiStrategy, Controller, Parcel, Player, PlayerStats, Utility};
 use crate::systems;
 
@@ -22,10 +22,12 @@ pub struct GlobalStats {
     pub population: u32,
     pub commercial_jobs: u32,
     pub industrial_jobs: u32,
-    /// Raw RCI demand in people/jobs, map wide (before tax adjustments).
-    pub raw_demand: [i32; 3],
+    pub office_jobs: u32,
+    pub public_jobs: u32,
+    /// Raw R/C/I/O demand in people/jobs, map wide (before tax adjustments).
+    pub raw_demand: [i32; 4],
     /// Normalised per-mille demand, map wide.
-    pub demand: [i32; 3],
+    pub demand: [i32; 4],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,6 +61,8 @@ pub struct TickReport {
     /// Tiles whose level went up / down this tick.
     pub grew: u32,
     pub decayed: u32,
+    /// Tiles that caught fire this tick.
+    pub fires: Vec<Pos>,
     pub month_ended: bool,
     pub game_over: bool,
 }
@@ -74,6 +78,7 @@ pub struct NewGame {
     pub seed: u64,
     pub config: Config,
     pub players: Vec<PlayerSetup>,
+    pub terrain: TerrainSettings,
 }
 
 impl NewGame {
@@ -84,7 +89,7 @@ impl NewGame {
             let strategy = if i % 2 == 0 { AiStrategy::UtilityBaron } else { AiStrategy::Developer };
             players.push(PlayerSetup { name: ai_name(i), controller: Controller::Ai(strategy) });
         }
-        Self { seed, config, players }
+        Self { seed, config, players, terrain: TerrainSettings::default() }
     }
 }
 
@@ -111,7 +116,7 @@ impl GameState {
     pub fn new(setup: &NewGame) -> Self {
         let config = setup.config.clone();
         let mut map = Map::new(config.map_width, config.map_height);
-        map.carve_river(setup.seed);
+        map.generate(setup.seed, &setup.terrain);
 
         let n = setup.players.len().clamp(1, MAX_PLAYERS);
         let (cols, rows) = parcel_grid(n);
@@ -197,13 +202,7 @@ impl GameState {
     /// Population / jobs housed by a zone tile.
     pub fn occupants(&self, idx: usize) -> u32 {
         let t = &self.map.tiles[idx];
-        let per = match t.kind.zone() {
-            Some(Zone::Residential) => self.config.residents_per_level,
-            Some(Zone::Commercial) => self.config.commercial_jobs_per_level,
-            Some(Zone::Industrial) => self.config.industrial_jobs_per_level,
-            None => 0,
-        };
-        t.level as u32 * per as u32
+        t.kind.zone().map_or(0, |z| t.level as u32 * self.config.per_level(z) as u32)
     }
 
     pub fn month(&self) -> u64 {

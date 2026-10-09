@@ -6,6 +6,8 @@ use std::sync::Arc;
 use bevy::audio::{AudioSource, PlaybackSettings, Volume};
 use bevy::prelude::*;
 
+use crate::settings::Settings;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Sfx {
     Place,
@@ -14,12 +16,12 @@ pub enum Sfx {
     Cash,
     Join,
     GameOver,
+    Fire,
 }
 
 #[derive(Resource, Default)]
 pub struct SfxQueue {
     queue: Vec<Sfx>,
-    pub muted: bool,
 }
 
 impl SfxQueue {
@@ -115,12 +117,17 @@ fn synth(s: Sfx) -> Vec<f32> {
                 tone(&mut v, f, f, 0.16, 0, 0.45);
             }
         }
+        Sfx::Fire => {
+            tone(&mut v, 880.0, 660.0, 0.12, 1, 0.22);
+            tone(&mut v, 880.0, 660.0, 0.12, 1, 0.22);
+            tone(&mut v, 300.0, 120.0, 0.35, 2, 0.3);
+        }
     }
     v
 }
 
 fn build_bank(mut commands: Commands, mut sources: ResMut<Assets<AudioSource>>) {
-    let all = [Sfx::Place, Sfx::Bulldoze, Sfx::Error, Sfx::Cash, Sfx::Join, Sfx::GameOver];
+    let all = [Sfx::Place, Sfx::Bulldoze, Sfx::Error, Sfx::Cash, Sfx::Join, Sfx::GameOver, Sfx::Fire];
     let bank = all
         .into_iter()
         .map(|s| (s, sources.add(AudioSource { bytes: Arc::from(wav(&synth(s))) })))
@@ -128,15 +135,15 @@ fn build_bank(mut commands: Commands, mut sources: ResMut<Assets<AudioSource>>) 
     commands.insert_resource(SfxBank(bank));
 }
 
-fn play(mut commands: Commands, mut q: ResMut<SfxQueue>, bank: Option<Res<SfxBank>>) {
+fn play(mut commands: Commands, mut q: ResMut<SfxQueue>, bank: Option<Res<SfxBank>>, settings: Res<Settings>) {
     let Some(bank) = bank else { return };
     let items = std::mem::take(&mut q.queue);
-    if q.muted {
+    if settings.muted || settings.volume <= 0.0 {
         return;
     }
     for s in items {
         if let Some((_, h)) = bank.0.iter().find(|(k, _)| *k == s) {
-            commands.spawn((AudioPlayer::new(h.clone()), PlaybackSettings::DESPAWN.with_volume(Volume::Linear(0.6))));
+            commands.spawn((AudioPlayer::new(h.clone()), PlaybackSettings::DESPAWN.with_volume(Volume::Linear(0.8 * settings.volume))));
         }
     }
 }

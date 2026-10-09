@@ -8,21 +8,48 @@ affect one another's land value.
 ## Run
 
 ```sh
-cargo run --release --bin parcels                    # main menu
-cargo run --release --bin parcels -- --solo --ai 3   # you vs 3 AI neighbours
+cargo run --release --bin parcels                    # title screen
+cargo run --release --bin parcels -- --solo --ai 3 --map 128x96
 cargo run --release --bin parcels -- --host --slots 4 --name Rob
 cargo run --release --bin parcels -- --join 192.168.1.20:5757 --name Ana
-cargo run --release --bin parcels-server -- --slots 4 --wait 2   # headless dedicated host
+cargo run --release --bin parcels -- --load quicksave
+cargo run --release --bin parcels-server -- --slots 4 --wait 2 --map 192x144   # headless host
 cargo run --release --bin parcels -- --verify-replay saves/replay.ron
 cargo test --workspace --release
 ```
 
-**Controls:** WASD/arrows/screen edge/middle-drag to pan, wheel to zoom. Tools:
-R road, Z/X/C residential/commercial/industrial, L power line, P pipe, G power
-plant, U pump, K park, B bulldoze, Esc inspect. Drag to paint; right-click
-cancels. 1–8 switch overlays (land value, power, water, density, pollution,
-traffic, owners). Space pauses, +/- change speed, Tab switches between your
-parcels in hot-seat, F5/F9 save/load, M mutes sound.
+The title screen (with an AI city growing behind it) offers **Continue**, **New game**
+(map size 64×48 up to 256×256, rivers, lakes, woods, neighbours, hot-seat players,
+game length, starting money, fires, seed, with a live map preview), **Load game**
+(named saves with date, map and players), **Play with a friend** (host a new or saved
+game, shows the address to share; join by address; hot-seat) and **Settings**
+(volume, mouse, shadows, day/night speed, cars and people, interface size, autosave).
+
+**Controls.** Map: WASD/arrows/screen edge or right-drag to pan, middle-drag or Q/E
+to rotate, wheel to zoom, PageUp/PageDown to tilt. **V** drops you into street view:
+walk with WASD and the mouse, Shift to run, F to fly, V/Esc to come back; build tools
+work at the crosshair. Tools: R street (again: avenue), Z/X/C/O residential,
+commercial, industrial, office (again: dense), L power line, P pipe, G/U/J/K/N cycle
+power, water, services, parks, landmarks, B bulldoze, Esc inspect. 1–0 overlays
+(land value, power, water, density, pollution, traffic, crime, services, owners).
+Space pauses, +/- speed, Tab switches parcel in hot-seat, F5/F9 quick-save/load,
+F10 menu, H help, ` toggles the side panel.
+
+**What you can build** (balance in `config/balance.ron`):
+
+| Category | Items |
+| --- | --- |
+| Transport | street, avenue (half the congestion), bridges over water |
+| Zones | residential, commercial, industrial, office; low or high density |
+| Power | power line, coal, gas, wind turbine, solar farm, nuclear (1×1 to 3×3) |
+| Water | pipe, pump (bonus by the river), water tower, treatment plant |
+| Services | police (crime), fire station (fires), clinic, hospital (tall towers), school, university (mid-rise housing and offices) |
+| Parks | park, plaza, playground, sports field, stadium |
+| Landmarks | town hall, monument, airport (4×4; boosts regional demand) |
+
+Services only work while powered and cover tiles on both sides of a parcel border.
+The inspector tells you why a building isn't growing (no water, no school, land too
+cheap for towers…).
 
 **Winning:** the highest score (treasury plus land value of the parcels you own)
 when the time limit runs out (10 game years by default).
@@ -31,9 +58,9 @@ when the time limit runs out (10 game years by default).
 
 | Crate | What it does |
 | --- | --- |
-| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `Command`, the six-stage tick pipeline, AI, replays. |
+| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `Command`, the building catalog, terrain generation, the six-stage tick pipeline, AI, replays. |
 | `parcels_net` | Lockstep command relay over renet. Contains the `parcels-server` binary. |
-| `parcels_game` | Bevy client: isometric map renderer, camera, build tools, egui HUD, menu/lobby, synthesized audio. |
+| `parcels_game` | Bevy client: 3D world built from chunked meshes (`world/`), orbit and street-level cameras, day/night, cosmetic cars and pedestrians, build tools, egui HUD and minimap, title screen, saves, settings, synthesized audio. |
 
 Balance constants live in `config/balance.ron` (money in cents, land value
 0..=1000). They're copied into each new game's state, so a save always replays
@@ -66,9 +93,14 @@ handy when tuning.
   that fails if `f32`, `f64`, `HashMap`, `Instant` and similar show up in sim
   source.
 
+- **Rendering:** the grid is drawn as 16×16-tile chunks of vertex-coloured meshes.
+  Each tick a chunk's visible state is hashed and only changed chunks are rebuilt,
+  nearest the camera first, within a frame budget. Windows and lamps live in their
+  own mesh so night can light them. Cars, people, turbine rotors and flames are
+  cosmetic and never touch the sim.
+
 ## Not built yet (deliberately)
 
-Curved roads, per-car traffic, terrain editing, disasters, client-side
-prediction, accounts and matchmaking. The stretch goals in `prompt.md`
-(negotiated deals, claimable parcels, animated sprites) build directly on the
-command and controller model.
+Curved roads, per-car traffic simulation, terrain elevation, public transport,
+client-side prediction, accounts and matchmaking. Saves from v0.1 can't be loaded
+(the tile format changed).

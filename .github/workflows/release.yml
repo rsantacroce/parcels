@@ -47,15 +47,19 @@ jobs:
           mkdir -p "$dir"
           cp target/release/parcels${{ matrix.ext }} target/release/parcels-server${{ matrix.ext }} "$dir/"
           cp -r config README.md "$dir/"
+          # Archive names carry no version, so releases/latest/download/<name> always works.
           if [ "$RUNNER_OS" = "Windows" ]; then
-            7z a "$dir.zip" "$dir" > /dev/null
+            7z a "parcels-${{ matrix.name }}.zip" "$dir" > /dev/null
           else
-            tar czf "$dir.tar.gz" "$dir"
+            tar czf "parcels-${{ matrix.name }}.tar.gz" "$dir"
           fi
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: parcels-*.*
+          path: |
+            parcels-${{ matrix.name }}.zip
+            parcels-${{ matrix.name }}.tar.gz
+          if-no-files-found: error
 
   release:
     needs: build
@@ -68,5 +72,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: parcels-*
+          files: |
+            parcels-*.zip
+            parcels-*.tar.gz
           generate_release_notes: true

@@ -24,7 +24,7 @@ pub fn blurb(era: u8) -> &'static str {
     match era {
         0 | 1 => "Streets, small zones, coal and wind, and the basic services.",
         2 => "Avenues, railways, offices, cleaner power, water treatment and civic landmarks.",
-        3 => "Dense zones, hospitals, universities and the stadium.",
+        3 => "Dense zones, the subway, hospitals, universities and the stadium.",
         _ => "Nuclear power and the airport.",
     }
 }
@@ -36,14 +36,14 @@ impl Buildable {
         match self {
             Buildable::Road(Road::Street) | Buildable::PowerLine | Buildable::WaterPipe => 1,
             Buildable::Road(Road::Avenue) | Buildable::Rail => 2,
-            Buildable::Zone(_, Density::High) => 3,
+            Buildable::Zone(_, Density::High) | Buildable::Subway => 3,
             Buildable::Zone(Zone::Office, Density::Low) => 2,
             Buildable::Zone(..) => 1,
             Buildable::Building(b) => match b {
                 BusStop | BusDepot | CoalPlant | WindTurbine | WaterPump | WaterTower | PoliceStation | FireStation | Clinic
                 | School | Park | Plaza | Playground => 1,
                 TrainStation | GasPlant | SolarFarm | WaterTreatment | SportsField | TownHall | Monument => 2,
-                Hospital | University | Stadium => 3,
+                SubwayStation | Hospital | University | Stadium => 3,
                 NuclearPlant | Airport => 4,
             },
         }

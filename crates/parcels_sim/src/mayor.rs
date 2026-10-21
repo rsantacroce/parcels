@@ -81,6 +81,7 @@ impl Letter {
             Ask::Service(Service::Fire) => "If a fire starts here, nobody will come. We need a fire station nearby.".into(),
             Ask::Service(Service::Transit) => "We sit in traffic every morning. A bus stop near us would change everything.".into(),
             Ask::Service(Service::Rail) => "A train station near us would get us to work in no time.".into(),
+            Ask::Service(Service::Subway) => "Our block needs a subway stop.".into(),
             Ask::Park => "There's nowhere green to walk. Could we have a park near us?".into(),
             Ask::TaxesAtMost(n) => format!("Taxes are squeezing every household. Bring them down to {n}% or less."),
             Ask::Supply(Utility::Power) => "Our lights keep going out. The city needs more power.".into(),

@@ -57,11 +57,13 @@ pub enum Service {
     Transit = 4,
     /// Near a working train station.
     Rail = 5,
+    /// Near a working subway station.
+    Subway = 6,
 }
 
 impl Service {
-    pub const ALL: [Service; 6] =
-        [Service::Police, Service::Fire, Service::Health, Service::Education, Service::Transit, Service::Rail];
+    pub const ALL: [Service; 7] =
+        [Service::Police, Service::Fire, Service::Health, Service::Education, Service::Transit, Service::Rail, Service::Subway];
 
     pub fn bit(self) -> u8 {
         1 << self as u8
@@ -75,6 +77,7 @@ impl Service {
             Service::Education => "Education",
             Service::Transit => "Transit",
             Service::Rail => "Rail",
+            Service::Subway => "Subway",
         }
     }
 }
@@ -85,6 +88,7 @@ pub enum Building {
     BusStop,
     BusDepot,
     TrainStation,
+    SubwayStation,
     // Power
     CoalPlant,
     GasPlant,
@@ -115,10 +119,11 @@ pub enum Building {
 }
 
 impl Building {
-    pub const ALL: [Building; 25] = [
+    pub const ALL: [Building; 26] = [
         Building::BusStop,
         Building::BusDepot,
         Building::TrainStation,
+        Building::SubwayStation,
         Building::CoalPlant,
         Building::GasPlant,
         Building::WindTurbine,
@@ -148,6 +153,7 @@ impl Building {
             Building::BusStop => "Bus stop",
             Building::BusDepot => "Bus depot",
             Building::TrainStation => "Train station",
+            Building::SubwayStation => "Subway station",
             Building::CoalPlant => "Coal plant",
             Building::GasPlant => "Gas plant",
             Building::WindTurbine => "Wind turbine",
@@ -176,7 +182,7 @@ impl Building {
     pub fn category(self) -> Category {
         use Building::*;
         match self {
-            BusStop | BusDepot | TrainStation => Category::Transport,
+            BusStop | BusDepot | TrainStation | SubwayStation => Category::Transport,
             CoalPlant | GasPlant | WindTurbine | SolarFarm | NuclearPlant => Category::Power,
             WaterPump | WaterTower | WaterTreatment => Category::Water,
             PoliceStation | FireStation | Clinic | Hospital | School | University => Category::Services,
@@ -189,7 +195,7 @@ impl Building {
     pub fn size(self) -> u16 {
         use Building::*;
         match self {
-            BusStop | WindTurbine | WaterPump | WaterTower | PoliceStation | FireStation | Clinic | Park | Plaza
+            BusStop | SubwayStation | WindTurbine | WaterPump | WaterTower | PoliceStation | FireStation | Clinic | Park | Plaza
             | Playground | Monument => 1,
             BusDepot | TrainStation | CoalPlant | GasPlant | SolarFarm | WaterTreatment | Hospital | School | SportsField | TownHall => 2,
             NuclearPlant | University | Stadium => 3,
@@ -205,6 +211,7 @@ impl Building {
             Building::School | Building::University => Some(Service::Education),
             Building::BusStop => Some(Service::Transit),
             Building::TrainStation => Some(Service::Rail),
+            Building::SubwayStation => Some(Service::Subway),
             _ => None,
         }
     }
@@ -219,6 +226,11 @@ impl Building {
         self == Building::TrainStation
     }
 
+    /// Must sit on, or beside, a subway line.
+    pub fn needs_subway(self) -> bool {
+        self == Building::SubwayStation
+    }
+
     /// Joins power and water networks (like a zone does). Open spaces don't.
     pub fn conducts(self) -> bool {
         !matches!(self, Building::BusStop | Building::Park | Building::Plaza | Building::Playground | Building::Monument)
@@ -229,6 +241,7 @@ impl Building {
         use Building::*;
         match self {
             BusStop => "Beside a road. Homes and jobs nearby can take the bus, if a depot serves this road network.",
+            SubwayStation => "On a subway line. Works with another station on the line. Lets the tallest towers grow.",
             TrainStation => "Beside rail track and a road. Works with another station on the line, or a line to a neighbour.",
             BusDepot => "Runs the buses on its road network. Needs power. Each one carries a fixed number of riders.",
             CoalPlant => "Cheap, plentiful power. Very dirty.",
@@ -261,6 +274,7 @@ impl Building {
         let s = BuildingStats::default();
         match self {
             BusStop => BuildingStats { cost: 150_00, upkeep: 3, service_radius: 4, ..s },
+            SubwayStation => BuildingStats { cost: 3_500_00, upkeep: 1_00, power_draw: 8, service_radius: 5, jobs: 10, ..s },
             TrainStation => BuildingStats { cost: 6_000_00, upkeep: 1_50, power_draw: 6, service_radius: 6, jobs: 30, ..s },
             BusDepot => BuildingStats { cost: 4_000_00, upkeep: 1_00, power_draw: 4, jobs: 25, ..s },
             CoalPlant => BuildingStats { cost: 3_000_00, upkeep: 1_00, power_supply: 240, pollution: 60, jobs: 20, ..s },

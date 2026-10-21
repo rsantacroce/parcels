@@ -52,8 +52,9 @@ pub struct CityStats {
     pub commute_minutes: u16,
     /// Bus fares per tick, cents.
     pub fares: i64,
-    /// Commuters who take the train.
+    /// Commuters who take the train, and the subway.
     pub train_riders: u32,
+    pub subway_riders: u32,
     /// Residents working in a neighbouring city, and neighbours working here.
     pub commuters_out: u32,
     pub commuters_in: u32,

@@ -81,9 +81,33 @@ impl BusNetwork {
     }
 }
 
-/// Connected rail lines, how many working stations each has, and which map
-/// edges it runs off (toward a neighbour).
+/// The two kinds of line stations run on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Line {
+    Rail,
+    Subway,
+}
+
+impl Line {
+    fn track(self, t: &crate::map::Tile) -> bool {
+        match self {
+            Line::Rail => t.rail,
+            Line::Subway => t.subway,
+        }
+    }
+
+    fn station(self) -> Building {
+        match self {
+            Line::Rail => Building::TrainStation,
+            Line::Subway => Building::SubwayStation,
+        }
+    }
+}
+
+/// Connected lines of one kind, how many working stations each has, and which
+/// map edges it runs off (toward a neighbour; railways only).
 pub struct RailNetwork {
+    pub line: Line,
     pub net: Vec<u32>,
     pub stations: Vec<u32>,
     pub crosses: Vec<[bool; 4]>,
@@ -91,19 +115,23 @@ pub struct RailNetwork {
 
 impl RailNetwork {
     pub fn new(state: &GameState) -> Self {
+        Self::of(state, Line::Rail)
+    }
+
+    pub fn of(state: &GameState, line: Line) -> Self {
         let map = &state.map;
         let mut net = vec![NONE; map.len()];
         let mut count = 0u32;
         let mut stack = Vec::new();
         for i in 0..map.len() {
-            if net[i] != NONE || !map.tiles[i].rail {
+            if net[i] != NONE || !line.track(&map.tiles[i]) {
                 continue;
             }
             net[i] = count;
             stack.push(i);
             while let Some(j) = stack.pop() {
                 for k in map.neighbors4(j) {
-                    if net[k] == NONE && map.tiles[k].rail {
+                    if net[k] == NONE && line.track(&map.tiles[k]) {
                         net[k] = count;
                         stack.push(k);
                     }
@@ -113,7 +141,7 @@ impl RailNetwork {
         }
         let mut crosses = vec![[false; 4]; count as usize];
         for side in Side::ALL {
-            if state.neighbours[side.index()].is_none() {
+            if state.neighbours[side.index()].is_none() || line == Line::Subway {
                 continue;
             }
             for p in side.edge(map) {
@@ -123,7 +151,7 @@ impl RailNetwork {
                 }
             }
         }
-        let mut rails = Self { net, stations: vec![0; count as usize], crosses };
+        let mut rails = Self { line, net, stations: vec![0; count as usize], crosses };
         for i in 0..map.len() {
             if let Some(n) = rails.line_of(state, i) {
                 rails.stations[n as usize] += 1;
@@ -132,15 +160,21 @@ impl RailNetwork {
         rails
     }
 
-    /// The line a powered station anchor at `idx` sits on.
+    /// The line a powered station anchor at `idx` sits on (or beside).
     fn line_of(&self, state: &GameState, idx: usize) -> Option<u32> {
         let map = &state.map;
         let t = &map.tiles[idx];
-        let draws = state.config.building(Building::TrainStation).power_draw > 0;
-        if t.kind != TileKind::Building(Building::TrainStation) || !t.is_anchor() || (draws && !t.powered) {
+        let b = self.line.station();
+        let draws = state.config.building(b).power_draw > 0;
+        if t.kind != TileKind::Building(b) || !t.is_anchor() || (draws && !t.powered) {
             return None;
         }
-        map.footprint_at(map.pos(idx)).iter().flat_map(|p| map.neighbors4(map.idx(p))).map(|k| self.net[k]).find(|&n| n != NONE)
+        let fp = map.footprint_at(map.pos(idx));
+        fp.iter()
+            .map(|p| map.idx(p))
+            .chain(fp.iter().flat_map(|p| map.neighbors4(map.idx(p))))
+            .map(|k| self.net[k])
+            .find(|&n| n != NONE)
     }
 
     /// The line of a working station: one with somewhere to go, either
@@ -220,13 +254,15 @@ pub fn run(state: &mut GameState) {
         }
     }
 
-    // Trains first: they skip the roads altogether.
-    let rails = RailNetwork::new(state);
+    // The subway and trains first: they skip the roads altogether.
     let (mut commuters, mut minutes, mut out) = (0u32, 0u64, 0u32);
+    let tubes = RailNetwork::of(state, Line::Subway);
+    let subway = by_train(state, &tubes, &mut open, &mut homes, &mut reached, &mut pool);
+    let rails = RailNetwork::new(state);
     let trains = by_train(state, &rails, &mut open, &mut homes, &mut reached, &mut pool);
-    commuters += trains.local + trains.abroad;
+    commuters += subway.local + trains.local + trains.abroad;
     out += trains.abroad;
-    minutes += TRAIN_MINUTES * (trains.local + trains.abroad) as u64;
+    minutes += SUBWAY_MINUTES * subway.local as u64 + TRAIN_MINUTES * (trains.local + trains.abroad) as u64;
 
     // What's left of a neighbour's jobs waits at the roads that cross into it.
     let edge_roads = |side: Side| -> Vec<usize> {
@@ -335,7 +371,10 @@ pub fn run(state: &mut GameState) {
     }
 
     let tpm = c.ticks_per_month.max(1) as i64;
-    let fares = (riders as i64 * c.bus_fare + (trains.local + trains.abroad) as i64 * c.train_fare) / tpm;
+    let fares = (riders as i64 * c.bus_fare
+        + (trains.local + trains.abroad) as i64 * c.train_fare
+        + subway.local as i64 * c.subway_fare)
+        / tpm;
     let (street, avenue, full) = (c.street_capacity.max(1), c.avenue_capacity.max(1), c.traffic_at_capacity);
     for i in 0..n {
         let t = &mut state.map.tiles[i];
@@ -355,10 +394,12 @@ pub fn run(state: &mut GameState) {
     s.commuters_out = out;
     s.commuters_in = inbound;
     s.train_riders = trains.local + trains.abroad;
+    s.subway_riders = subway.local;
 }
 
-/// Minutes a train commute takes, door to door.
+/// Minutes a train or subway commute takes, door to door.
 const TRAIN_MINUTES: u64 = 12;
+const SUBWAY_MINUTES: u64 = 8;
 
 struct TrainTrips {
     local: u32,
@@ -384,7 +425,11 @@ fn by_train(
     }
     // Which line serves each tile (the first working station that reaches it).
     let mut cover = vec![NONE; map.len()];
-    let radius = c.building(Building::TrainStation).service_radius;
+    let radius = c.building(rails.line.station()).service_radius;
+    let (share, per_station) = match rails.line {
+        Line::Rail => (c.train_share_percent, c.station_riders),
+        Line::Subway => (c.subway_share_percent, c.subway_station_riders),
+    };
     for i in 0..map.len() {
         if let Some(line) = rails.station_net(state, i) {
             let centre = map.footprint_at(map.pos(i)).center();
@@ -402,14 +447,14 @@ fn by_train(
         }
     }
     let mut next = vec![0usize; lines];
-    let mut seats: Vec<u32> = rails.stations.iter().map(|&s| s * c.station_riders).collect();
+    let mut seats: Vec<u32> = rails.stations.iter().map(|&s| s * per_station).collect();
     for (h, home) in homes.iter_mut().enumerate() {
         let line = cover[home.0];
         if line == NONE || home.1 == 0 {
             continue;
         }
         let l = line as usize;
-        let mut want = (home.1 * c.train_share_percent as u32 / 100).min(seats[l]);
+        let mut want = (home.1 * share as u32 / 100).min(seats[l]);
         let start = want;
         while want > 0 && next[l] < doors[l].len() {
             let j = doors[l][next[l]];

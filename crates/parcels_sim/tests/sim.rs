@@ -600,3 +600,50 @@ fn a_railway_to_a_neighbour_carries_commuters_out() {
     let st = &s.state.city.stats;
     assert!(st.train_riders > 0 && st.commuters_out > 0, "riders {} out {}", st.train_riders, st.commuters_out);
 }
+
+#[test]
+fn the_subway_runs_under_the_town_and_lets_towers_top_out() {
+    let mut s = Session::new(commuter_town(Road::Street));
+    s.state.city.treasury = 1_000_000_00;
+    let mut station = s.state.config.building(Building::SubwayStation);
+    station.power_draw = 0;
+    s.state.config.buildings.insert(Building::SubwayStation, station);
+    // Under the homes, the street and the factories alike.
+    assert!(place(&mut s, (2, 8), (28, 8), Buildable::Subway).rejected.is_empty());
+    assert!(place(&mut s, (2, 4), (2, 8), Buildable::Subway).rejected.is_empty(), "under the houses too");
+    assert!(s.state.map.tile(Pos::new(2, 4)).kind.is_zone());
+    // Stations sit on the line.
+    assert!(!place(&mut s, (10, 12), (10, 12), Buildable::Building(Building::SubwayStation)).rejected.is_empty());
+    for x in [3u16, 27] {
+        let r = place(&mut s, (x, 8), (x, 8), Buildable::Building(Building::SubwayStation));
+        assert!(r.rejected.is_empty(), "{:?}", r.rejected);
+    }
+    for _ in 0..6 {
+        s.tick();
+    }
+    assert!(s.state.city.stats.subway_riders > 0);
+    assert!(s.state.map.tile(Pos::new(3, 6)).covered(Service::Subway));
+
+    // The top level of a tower needs a station nearby.
+    let c = &s.state.config;
+    let mut t = s.state.map.tile(Pos::new(3, 6)).clone();
+    t.kind = TileKind::Zone(Zone::Residential, Density::High);
+    t.level = c.subway_free_levels;
+    t.coverage = 0xff;
+    t.watered = true;
+    t.land_value = c.land_value_max;
+    assert_eq!(systems::growth::growth_block(c, &t), None);
+    t.coverage &= !Service::Subway.bit();
+    assert_eq!(systems::growth::growth_block(c, &t), Some("needs a subway station nearby"));
+
+    // Bulldozing a house keeps the tunnel under it.
+    place_bulldoze(&mut s, (2, 4));
+    assert!(s.state.map.tile(Pos::new(2, 4)).subway);
+    place_bulldoze(&mut s, (2, 4));
+    assert!(!s.state.map.tile(Pos::new(2, 4)).subway);
+}
+
+fn place_bulldoze(s: &mut Session, at: (u16, u16)) {
+    s.submit(CommandKind::Bulldoze { area: Area::Rect(Rect::from_corners(Pos::new(at.0, at.1), Pos::new(at.0, at.1))) });
+    s.tick();
+}

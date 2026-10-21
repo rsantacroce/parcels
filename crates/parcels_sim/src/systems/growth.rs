@@ -6,7 +6,7 @@
 //!
 //! What a tile may grow into depends on what's around it: water past the first
 //! level, a school for mid-rise housing and offices, a hospital or clinic for the
-//! tallest towers, and good land for dense zones to outgrow the low-density cap.
+//! tallest towers, a subway station for the very top, and good land for dense zones to outgrow the low-density cap.
 
 use crate::catalog::Service;
 use crate::config::Config;
@@ -54,6 +54,9 @@ pub fn growth_block(c: &Config, t: &Tile) -> Option<&'static str> {
     }
     if next > c.health_free_levels && !t.covered(Service::Health) {
         return Some("needs a clinic or hospital nearby");
+    }
+    if next > c.subway_free_levels && !t.covered(Service::Subway) {
+        return Some("needs a subway station nearby");
     }
     None
 }

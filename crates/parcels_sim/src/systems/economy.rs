@@ -34,6 +34,9 @@ pub fn run(state: &mut GameState) {
         if t.pipe {
             upkeep += c.water_pipe_upkeep;
         }
+        if t.subway {
+            upkeep += c.subway_upkeep;
+        }
         if t.rail {
             upkeep += if t.terrain == Terrain::Water { c.rail_upkeep * 2 } else { c.rail_upkeep };
         }

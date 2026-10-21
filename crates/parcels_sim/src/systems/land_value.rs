@@ -27,6 +27,7 @@ pub fn run(state: &mut GameState) {
     // middle of the footprint. Bus stops work when a depot runs their roads.
     let buses = commute::BusNetwork::new(state);
     let rails = commute::RailNetwork::new(state);
+    let tubes = commute::RailNetwork::of(state, commute::Line::Subway);
     let mut coverage = vec![0u8; n];
     for i in 0..n {
         let t = &state.map.tiles[i];
@@ -35,6 +36,7 @@ pub fn run(state: &mut GameState) {
         let working = match service {
             Service::Transit => buses.stop_works(state, i),
             Service::Rail => rails.station_net(state, i).is_some(),
+            Service::Subway => tubes.station_net(state, i).is_some(),
             _ => t.powered,
         };
         if !t.is_anchor() || !working {

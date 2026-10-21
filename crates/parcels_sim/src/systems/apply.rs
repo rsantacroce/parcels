@@ -23,6 +23,8 @@ fn can_place(tile: &Tile, what: Buildable) -> bool {
         Buildable::Road(Road::Avenue) => matches!(tile.kind, TileKind::Empty | TileKind::Road(Road::Street)),
         // Across open land, water (a bridge), or a road (a level crossing).
         Buildable::Rail => !tile.rail && !tile.wire && matches!(tile.kind, TileKind::Empty | TileKind::Road(_)),
+        // Underground, beneath anything on land.
+        Buildable::Subway => !tile.subway && land,
         Buildable::PowerLine => !tile.wire && matches!(tile.kind, TileKind::Empty | TileKind::Road(_)),
         // Pipes may follow a bridge across water.
         Buildable::WaterPipe => !tile.pipe && (land || tile.kind.is_road()),
@@ -49,7 +51,7 @@ fn place_cost(state: &GameState, tile: &Tile, what: Buildable) -> i64 {
     if matches!(what, Buildable::Road(_) | Buildable::Rail) && tile.terrain == Terrain::Water && !tile.kind.is_road() {
         cost *= state.config.bridge_cost_multiplier;
     }
-    if tile.terrain == Terrain::Forest && what != Buildable::WaterPipe {
+    if tile.terrain == Terrain::Forest && !matches!(what, Buildable::WaterPipe | Buildable::Subway) {
         cost += state.config.clear_forest_cost;
     }
     cost
@@ -106,6 +108,9 @@ pub fn plan_place(state: &GameState, area: &Area, what: Buildable) -> Result<Pla
             if b.needs_rail() && !touches(&|t| t.rail) {
                 continue;
             }
+            if b.needs_subway() && !fp.iter().any(|p| state.map.tile(p).subway) && !touches(&|t| t.subway) {
+                continue;
+            }
             plan.cost += state.config.building(b).cost;
             for p in fp.iter() {
                 seen.insert(p);
@@ -158,13 +163,14 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
             let plan = plan_place(state, area, *what)?;
             for &p in &plan.tiles {
                 let t = state.map.tile_mut(p);
-                if t.terrain == Terrain::Forest && *what != Buildable::WaterPipe {
+                if t.terrain == Terrain::Forest && !matches!(what, Buildable::WaterPipe | Buildable::Subway) {
                     t.terrain = Terrain::Land;
                 }
                 match what {
                     Buildable::PowerLine => t.wire = true,
                     Buildable::WaterPipe => t.pipe = true,
                     Buildable::Rail => t.rail = true,
+                    Buildable::Subway => t.subway = true,
                     Buildable::Zone(z, d) => {
                         // Densifying keeps what's already built; rezoning starts over.
                         if t.kind.zone() != Some(*z) {
@@ -190,6 +196,10 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
             let plan = plan_bulldoze(state, area)?;
             for &p in &plan.tiles {
                 let t = state.map.tile_mut(p);
+                // A tunnel outlasts what's above it; bulldoze again to fill it in.
+                if t.kind == TileKind::Empty && !t.wire && !t.pipe && !t.rail {
+                    t.subway = false;
+                }
                 t.kind = TileKind::Empty;
                 t.wire = false;
                 t.pipe = false;

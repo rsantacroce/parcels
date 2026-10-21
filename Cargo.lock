@@ -4368,7 +4368,7 @@ dependencies = [
 
 [[package]]
 name = "parcels_game"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "bevy_egui",
@@ -4379,7 +4379,7 @@ dependencies = [
 
 [[package]]
 name = "parcels_sim"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "postcard",
  "ron 0.10.1",

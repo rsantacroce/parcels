@@ -1,6 +1,7 @@
 //! Stage 7: how residents feel. Each factor is scored from what the homes
 //! around the city actually experience, weighted by how many people live there,
-//! and the approval rating drifts toward the total.
+//! and the approval rating drifts toward the total plus the mayor's goodwill
+//! from answered letters.
 
 use crate::catalog::Service;
 use crate::city::Factor;
@@ -55,7 +56,7 @@ pub fn run(state: &mut GameState) {
     set(Factor::Taxes, (c.neutral_tax_rate as i64 - state.city.tax_rate as i64) * 3, -20, 10);
     set(Factor::Budget, if state.city.treasury < 0 { -10 } else { 0 }, -10, 0);
 
-    let target = ((500 + mood.iter().sum::<i32>() * 10).clamp(0, 1000)) as i32;
+    let target = (500 + mood.iter().sum::<i32>() * 10 + state.city.mayor.goodwill).clamp(0, 1000);
     let s = &mut state.city.stats;
     let cur = s.approval as i32;
     let diff = target - cur;

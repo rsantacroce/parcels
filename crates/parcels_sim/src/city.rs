@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::mayor::Mayor;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Utility {
     Power,
@@ -138,4 +140,6 @@ pub struct City {
     /// Percent.
     pub tax_rate: u8,
     pub stats: CityStats,
+    #[serde(default)]
+    pub mayor: Mayor,
 }

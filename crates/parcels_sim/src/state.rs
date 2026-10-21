@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::city::{City, CityStats};
 use crate::command::Command;
 use crate::config::Config;
+use crate::mayor::Mayor;
 use crate::map::{Map, Pos, TerrainSettings};
 use crate::systems;
 
@@ -29,6 +30,11 @@ pub struct TickReport {
     /// Tiles that caught fire this tick.
     pub fires: Vec<Pos>,
     pub month_ended: bool,
+    /// Letters that arrived, were granted, or ran out this tick (ids).
+    pub letters_new: Vec<u32>,
+    pub letters_granted: Vec<u32>,
+    pub letters_missed: Vec<u32>,
+    pub election: Option<crate::mayor::Election>,
 }
 
 #[derive(Clone, Debug)]
@@ -58,6 +64,7 @@ impl GameState {
             treasury: config.starting_treasury,
             tax_rate: config.default_tax_rate,
             stats: CityStats { approval: 500, ..CityStats::default() },
+            mayor: Mayor::default(),
         };
         let mut state = Self { tick: 0, seed: setup.seed, config, map, city };
         // Settle derived values so the very first frame shows sensible numbers.
@@ -85,7 +92,7 @@ impl GameState {
 
     /// Advance one tick, applying `commands` (which must all be stamped with this
     /// tick). The pipeline order is fixed: commands, utilities, demand, growth,
-    /// land value, economy, status.
+    /// land value, economy, status, mayor.
     pub fn step(&mut self, commands: &[Command]) -> TickReport {
         let mut report = TickReport { tick: self.tick, ..Default::default() };
 
@@ -96,6 +103,7 @@ impl GameState {
         systems::land_value::run(self);
         systems::economy::run(self);
         systems::status::run(self);
+        systems::mayor::run(self, &mut report);
 
         self.tick += 1;
         report.month_ended = self.tick % self.config.ticks_per_month as u64 == 0;

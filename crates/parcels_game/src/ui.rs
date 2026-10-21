@@ -1,12 +1,13 @@
 //! In-game HUD in the paper style: a tool rail on the left with flyouts, a
-//! rail of cards on the right (city mood, budget), a dashboard along the bottom
+//! rail of cards on the right (inbox, city mood, budget, mayor), a dashboard along the bottom
 //! (minimap, date, speed, approval, money, population, RCIO), hover tooltips,
 //! toasts, and the pause menu with save and load.
 
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use parcels_sim::systems::growth::growth_block;
-use parcels_sim::{fmt_money, mood_word, Buildable, Category, CommandKind, Factor, GameState, Service, Terrain, TileKind, Zone};
+use parcels_sim::mayor::area_name;
+use parcels_sim::{fmt_money, mood_word, Buildable, Category, CommandKind, Election, Factor, GameState, Letter, LetterState, Pos, Service, Terrain, TileKind, Zone};
 
 use crate::audio::{Sfx, SfxQueue};
 use crate::camera::{CamMode, MainCamera, Orbit, StreetRequest};
@@ -17,7 +18,7 @@ use crate::saves;
 use crate::settings::Settings;
 use crate::tools::{hotkey, items, Tool, ToolState};
 use crate::view::{map_color, Overlay, View};
-use crate::world::meshgen::TILE;
+use crate::world::meshgen::{tile_center, TILE};
 use crate::world::scene::Sky;
 use crate::AppState;
 
@@ -48,6 +49,7 @@ enum Dialog {
     Save,
     Load,
     Help,
+    Election(Election),
 }
 
 #[derive(Resource)]
@@ -87,7 +89,7 @@ impl Plugin for UiPlugin {
     }
 }
 
-/// `--hud city|budget|zones|views|paused`: open part of the HUD on start, for screenshots.
+/// `--hud city|budget|inbox|mayor|zones|views|paused`: open part of the HUD on start, for screenshots.
 #[derive(Resource)]
 pub struct DevHud(pub String);
 
@@ -98,6 +100,8 @@ fn enter_playing(mut hud: ResMut<Hud>, dev: Option<Res<DevHud>>, mut driver: Opt
         match part {
             "city" => hud.side = Some(Side::City),
             "budget" => hud.side = Some(Side::Budget),
+            "inbox" => hud.side = Some(Side::Inbox),
+            "mayor" => hud.side = Some(Side::Mayor),
             "zones" => ts.set(Tool::Build(items(Category::Zones)[0])),
             "views" => hud.flyout = Some(Flyout::DataViews),
             "paused" => {
@@ -192,7 +196,8 @@ fn keys(
 #[allow(clippy::too_many_arguments)]
 fn digest_feed(
     mut feed: ResMut<TickFeed>,
-    driver: Res<Driver>,
+    mut driver: ResMut<Driver>,
+    mut hud: ResMut<Hud>,
     settings: Res<Settings>,
     mut toasts: ResMut<Toasts>,
     mut sfx: ResMut<SfxQueue>,
@@ -202,7 +207,23 @@ fn digest_feed(
     let reports = std::mem::take(&mut feed.reports);
     let Some(state) = driver.state() else { return };
     let mut autosave = false;
+    let mut election = None;
     for r in reports {
+        if !driver.showcase {
+            let letter = |id: &u32| state.city.mayor.letter(*id);
+            for l in r.letters_new.iter().filter_map(letter) {
+                toasts.info(format!("✉ New letter from {} in {}", l.from, area_name(&state.map, l.at)));
+                sfx.push(Sfx::Letter);
+            }
+            for l in r.letters_granted.iter().filter_map(letter) {
+                toasts.info(format!("✔ {} thanks you: {}", l.from, l.goal().to_lowercase()));
+                sfx.push(Sfx::Cash);
+            }
+            for l in r.letters_missed.iter().filter_map(letter) {
+                toasts.warn(format!("{} gave up waiting: {}", l.from, l.goal().to_lowercase()));
+            }
+            election = election.or(r.election);
+        }
         for (_, why) in &r.rejected {
             toasts.warn(why.to_string());
             sfx.push(Sfx::Error);
@@ -237,6 +258,11 @@ fn digest_feed(
             let _ = saves::save(&snapshot, "Autosave");
         });
         toasts.info("Autosaved");
+    }
+    if let Some(e) = election {
+        sfx.push(if e.won { Sfx::Milestone } else { Sfx::Error });
+        hud.dialog = Dialog::Election(e);
+        driver.paused = true;
     }
     let dt = time.delta_secs();
     for t in &mut toasts.0 {
@@ -317,8 +343,10 @@ enum Flyout {
 /// Which card opens from the right rail.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Side {
+    Inbox,
     City,
     Budget,
+    Mayor,
 }
 
 const DASH_H: f32 = 164.0;
@@ -514,7 +542,7 @@ fn hud(
                     ui.vertical(|ui| {
                         ui.set_width(300.0);
                         let pct = s.approval_percent();
-                        ui.vertical_centered(|ui| ui.label(caps("MAYOR APPROVAL")));
+                        ui.vertical_centered(|ui| ui.label(caps(&format!("MAYOR APPROVAL · {}", mood_word(pct).to_uppercase()))));
                         ui.horizontal(|ui| {
                             approval_meter(ui, 230.0, pct);
                             ui.label(egui::RichText::new(format!("{pct}%")).size(18.0).strong().color(pal::INK));
@@ -539,8 +567,21 @@ fn hud(
 
                     ui.vertical(|ui| {
                         ui.set_width(260.0);
-                        let mood = egui::RichText::new(mood_word(s.approval_percent())).size(15.0).strong().color(pal::INK);
-                        stat_row(ui, 260.0, Icon::Mood, "Mood", mood);
+                        let months = months_until(&state, city.mayor.next_election);
+                        let need = state.config.reelection_percent;
+                        let ec = if s.approval_percent() >= need { pal::GOOD } else { pal::BAD };
+                        let when = if months <= 12 { format!("{months} mo") } else { calendar(&state, city.mayor.next_election) };
+                        if stat_row(ui, 260.0, Icon::Ballot, "Election", egui::RichText::new(when).size(15.0).strong().color(ec))
+                            .on_hover_text(format!(
+                                "Next election {} ({months} months). You need {need}% approval to win; you have {}%.",
+                                calendar(&state, city.mayor.next_election),
+                                s.approval_percent()
+                            ))
+                            .interact(egui::Sense::click())
+                            .clicked()
+                        {
+                            hud.side = Some(Side::Mayor);
+                        }
                         let jc = if s.jobless_percent > 10 { pal::BAD } else { pal::INK };
                         stat_row(ui, 260.0, Icon::Jobs, "Jobless", egui::RichText::new(format!("{}%", s.jobless_percent)).size(15.0).strong().color(jc));
                         let short = s.power.unserved + s.water.unserved;
@@ -663,12 +704,19 @@ fn hud(
         egui::Area::new("rail_right".into()).anchor(egui::Align2::RIGHT_TOP, egui::vec2(-10.0, 10.0)).show(&ctx, |ui| {
             card().inner_margin(egui::Margin::symmetric(4, 6)).show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
+                let unread = city.mayor.open().count();
                 for (side, icon, label, tip) in [
+                    (Side::Inbox, Icon::Mail, "Inbox", "Letters from residents"),
                     (Side::City, Icon::City, "City", "How residents feel (`)"),
                     (Side::Budget, Icon::Budget, "Budget", "Taxes, upkeep, utilities"),
+                    (Side::Mayor, Icon::Mayor, "Mayor", "Your record and the next election"),
                 ] {
                     let on = hud.side == Some(side);
-                    if icons::rail_button(ui, icon, label, on).on_hover_text(tip).clicked() {
+                    let r = icons::rail_button(ui, icon, label, on);
+                    if side == Side::Inbox && unread > 0 {
+                        badge(ui, r.rect, unread);
+                    }
+                    if r.on_hover_text(tip).clicked() {
                         hud.side = if on { None } else { Some(side) };
                     }
                 }
@@ -706,6 +754,18 @@ fn hud(
                     }
                     Some(Side::Budget) => {
                         card().show(ui, |ui| budget_card(ui, &state, &mut actions));
+                    }
+                    Some(Side::Inbox) => {
+                        card().show(ui, |ui| {
+                            if let Some(at) = inbox_card(ui, &state) {
+                                orbit.focus = tile_center(at).with_y(0.0);
+                                ts.set(Tool::Inspect);
+                                ts.selected = Some(at);
+                            }
+                        });
+                    }
+                    Some(Side::Mayor) => {
+                        card().show(ui, |ui| mayor_card(ui, &state));
                     }
                     None => {}
                 }
@@ -1088,6 +1148,37 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                 }
             });
         }
+        Dialog::Election(e) => {
+            let title = if e.won { "Re-elected!" } else { "Voted out" };
+            center(title).show(ctx, |ui| {
+                ui.set_width(380.0);
+                ui.horizontal(|ui| {
+                    icons::inline(ui, if e.won { Icon::Ballot } else { Icon::Warning }, 44.0);
+                    ui.vertical(|ui| {
+                        let m = &state.city.mayor;
+                        if e.won {
+                            ui.label(egui::RichText::new(format!("{} voted to keep you, {}% in favour.", state.city.name, e.approval)).size(16.0).strong());
+                            ui.label(format!("Your term {} starts now. Next election {}.", m.term(), calendar(state, m.next_election)));
+                        } else {
+                            ui.label(egui::RichText::new(format!("Only {}% voted for you. {} has chosen someone else.", e.approval, state.city.name)).size(16.0).strong());
+                            ui.label("You can stay on as caretaker and win them back, or start over.");
+                        }
+                    });
+                });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    let label = if e.won { "Back to work" } else { "Stay on as caretaker" };
+                    if icons::menu_button(ui, Icon::Play, label, 220.0, 36.0, true).clicked() {
+                        hud.dialog = Dialog::None;
+                        driver.paused = false;
+                    }
+                    if !e.won && icons::menu_button(ui, Icon::Quit, "Quit to title", 150.0, 36.0, false).clicked() {
+                        hud.dialog = Dialog::None;
+                        next.set(AppState::Menu);
+                    }
+                });
+            });
+        }
         Dialog::Help => {
             center("Controls").show(ctx, |ui| {
                 ui.set_width(440.0);
@@ -1122,6 +1213,149 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
             });
         }
     }
+}
+
+/// Whole months from now until `tick`.
+fn months_until(state: &GameState, tick: u64) -> u64 {
+    tick.saturating_sub(state.tick).div_ceil(state.config.ticks_per_month as u64)
+}
+
+/// "MAR 2029" for a tick.
+fn calendar(state: &GameState, tick: u64) -> String {
+    let m = tick / state.config.ticks_per_month as u64;
+    format!("{} {}", MONTHS[(m % 12) as usize], FIRST_YEAR + m / 12)
+}
+
+/// A red count bubble on the top-right of a rail button.
+fn badge(ui: &egui::Ui, rect: egui::Rect, n: usize) {
+    let c = egui::pos2(rect.center().x + 18.0, rect.top() + 8.0);
+    let p = ui.painter();
+    p.circle_filled(c, 10.0, pal::BAD);
+    p.circle_stroke(c, 10.0, (1.5, pal::PAPER));
+    p.text(c, egui::Align2::CENTER_CENTER, n.to_string(), egui::FontId::proportional(12.0), egui::Color32::WHITE);
+}
+
+/// Open letters, then recently answered ones. Returns a tile to look at when
+/// the player clicks "Show".
+fn inbox_card(ui: &mut egui::Ui, state: &GameState) -> Option<Pos> {
+    let m = &state.city.mayor;
+    let mut show = None;
+    ui.horizontal(|ui| {
+        icons::inline(ui, Icon::Mail, 24.0);
+        ui.label(egui::RichText::new("Inbox").size(18.0).strong());
+    });
+    let open: Vec<&Letter> = m.open().collect();
+    if open.is_empty() {
+        ui.label(egui::RichText::new("No letters waiting. Residents write in about whatever bothers them most.").color(pal::INK_SOFT));
+    }
+    for l in open.iter().rev() {
+        egui::Frame::new().fill(egui::Color32::WHITE.gamma_multiply(0.75)).stroke((1.0, pal::PAPER_DEEP)).corner_radius(8).inner_margin(8).show(ui, |ui| {
+            ui.set_width(296.0);
+            ui.horizontal(|ui| {
+                icons::inline(ui, Icon::for_ask(l.ask), 22.0);
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(&l.from).strong());
+                    ui.label(egui::RichText::new(area_name(&state.map, l.at)).small().color(pal::INK_SOFT));
+                });
+            });
+            ui.label(egui::RichText::new(format!("“{}”", l.text())).italics());
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(l.goal()).small().strong());
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if l.ask.is_local() && ui.small_button("Show").on_hover_text("Look at their home").clicked() {
+                        show = Some(l.at);
+                    }
+                    let left = months_until(state, l.due);
+                    ui.label(egui::RichText::new(format!("{left} mo left")).small().color(if left <= 2 { pal::BAD } else { pal::INK_SOFT }));
+                });
+            });
+        });
+        ui.add_space(4.0);
+    }
+    let answered: Vec<&Letter> = m.letters.iter().filter(|l| l.state != LetterState::Open).collect();
+    if !answered.is_empty() {
+        ui.add_space(4.0);
+        ui.label(caps("ANSWERED"));
+        for l in answered.iter().rev() {
+            ui.horizontal(|ui| {
+                icons::inline(ui, if l.state == LetterState::Granted { Icon::Check } else { Icon::Cross }, 16.0);
+                ui.label(egui::RichText::new(format!("{}: {}", l.from, l.goal().to_lowercase())).small());
+            });
+        }
+    }
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new(format!(
+            "Granting a request lifts approval by about {}%; letting one lapse costs {}%. The effect fades over the months.",
+            state.config.letter_reward / 10,
+            state.config.letter_penalty / 10
+        ))
+        .small()
+        .color(pal::INK_SOFT),
+    );
+    show
+}
+
+fn mayor_card(ui: &mut egui::Ui, state: &GameState) {
+    let m = &state.city.mayor;
+    let s = &state.city.stats;
+    let pct = s.approval_percent();
+    let need = state.config.reelection_percent;
+    ui.set_width(300.0);
+    ui.horizontal(|ui| {
+        icons::inline(ui, Icon::Mayor, 24.0);
+        ui.vertical(|ui| {
+            ui.label(egui::RichText::new(format!("Mayor of {}", state.city.name)).size(18.0).strong());
+            ui.label(egui::RichText::new(format!("Term {}", m.term())).color(pal::INK_SOFT));
+        });
+    });
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        icons::inline(ui, Icon::Ballot, 18.0);
+        let months = months_until(state, m.next_election);
+        ui.label(egui::RichText::new(format!("Election {} · {months} months", calendar(state, m.next_election))).strong());
+    });
+    let r = ui.horizontal(|ui| {
+        approval_meter(ui, 250.0, pct);
+        ui.label(egui::RichText::new(format!("{pct}%")).strong());
+    });
+    // Mark the line the mayor has to clear.
+    let meter = r.response.rect;
+    let x = meter.left() + 3.0 + (250.0 - 6.0) * need as f32 / 100.0;
+    ui.painter().line_segment([egui::pos2(x, meter.top() - 3.0), egui::pos2(x, meter.top() + 23.0)], (2.5, pal::ACCENT));
+    let (txt, c) = if pct >= need { (format!("You'd win if the vote were today ({need}% needed)."), pal::GOOD) } else { (format!("You'd lose if the vote were today: {need}% needed."), pal::BAD) };
+    ui.label(egui::RichText::new(txt).color(c));
+    ui.add_space(6.0);
+    ui.label(caps("GOODWILL"));
+    let gw = m.goodwill;
+    let word = match gw {
+        30.. => "Residents feel heard",
+        1..30 => "A little goodwill",
+        0 => "Neutral",
+        -29..0 => "Some letters went unanswered",
+        _ => "Residents feel ignored",
+    };
+    ui.horizontal(|ui| {
+        icons::inline(ui, Icon::Mail, 18.0);
+        ui.label(format!("{word} ({}{:.1}% approval)", if gw >= 0 { "+" } else { "−" }, gw.abs() as f32 / 10.0));
+    });
+    ui.label(egui::RichText::new(format!("Requests granted: {} · missed: {}", m.letters_granted, m.letters_missed)).small().color(pal::INK_SOFT));
+    if !m.elections.is_empty() {
+        ui.add_space(6.0);
+        ui.label(caps("PAST ELECTIONS"));
+        for e in m.elections.iter().rev().take(6) {
+            ui.horizontal(|ui| {
+                icons::inline(ui, if e.won { Icon::Check } else { Icon::Cross }, 16.0);
+                ui.label(format!("{} · {}% · {}", calendar(state, e.tick), e.approval, if e.won { "won" } else { "lost" }));
+            });
+        }
+    }
+    ui.add_space(6.0);
+    ui.label(
+        egui::RichText::new("Approval also pulls people in: a popular mayor raises demand for homes, an unpopular one drives residents away.")
+            .small()
+            .color(pal::INK_SOFT),
+    );
 }
 
 pub fn default_save_name(state: &GameState) -> String {

@@ -5,7 +5,7 @@
 use std::f32::consts::{PI, TAU};
 
 use bevy_egui::egui::{self, Color32, Painter, Pos2, Rect, Shape, Stroke};
-use parcels_sim::{Buildable, Building, Category, Factor, Road, Zone};
+use parcels_sim::{Ask, Buildable, Building, Category, Factor, Road, Service, Utility, Zone};
 
 /// The paper palette shared by every screen.
 pub mod pal {
@@ -87,6 +87,11 @@ pub enum Icon {
     Pump,
     Plane,
     Cube,
+    Mail,
+    Ballot,
+    Mayor,
+    Check,
+    Cross,
 }
 
 impl Icon {
@@ -133,6 +138,23 @@ impl Icon {
             Zone::Commercial => Icon::Shop,
             Zone::Industrial => Icon::Factory,
             Zone::Office => Icon::Office,
+        }
+    }
+
+    pub fn for_ask(a: Ask) -> Icon {
+        match a {
+            Ask::Service(Service::Police) => Icon::Police,
+            Ask::Service(Service::Fire) => Icon::Fire,
+            Ask::Service(Service::Health) => Icon::Health,
+            Ask::Service(Service::Education) => Icon::School,
+            Ask::Park => Icon::Parks,
+            Ask::TaxesAtMost(_) => Icon::Coins,
+            Ask::Supply(Utility::Power) => Icon::Power,
+            Ask::Supply(Utility::Water) => Icon::Water,
+            Ask::JoblessAtMost(_) => Icon::Jobs,
+            Ask::CleanAir(_) => Icon::Leaf,
+            Ask::QuietStreets(_) => Icon::Car,
+            Ask::OutOfDebt => Icon::Money,
         }
     }
 
@@ -561,6 +583,39 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, bg: Color32) {
             k.path(&[t, r, (0.88, 0.72), b, (0.12, 0.72), l, t], 0.05, INK);
             k.path(&[l, c, r], 0.04, INK);
             k.line(c, b, 0.04, INK);
+        }
+        Icon::Mail => {
+            k.rect(0.08, 0.22, 0.92, 0.78, 0.06, PAPER);
+            k.poly(&[(0.08, 0.24), (0.92, 0.24), (0.5, 0.56)], PAPER_DEEP);
+            k.path(&[(0.1, 0.26), (0.5, 0.56), (0.9, 0.26)], 0.05, INK);
+            k.frame(0.08, 0.22, 0.92, 0.78, 0.06, 0.06, INK);
+            k.circle(0.8, 0.3, 0.12, BAD);
+        }
+        Icon::Ballot => {
+            k.poly(&[(0.3, 0.06), (0.7, 0.06), (0.7, 0.46), (0.3, 0.46)], PAPER);
+            k.frame(0.3, 0.06, 0.7, 0.46, 0.02, 0.04, INK_SOFT);
+            k.path(&[(0.38, 0.26), (0.47, 0.36), (0.62, 0.16)], 0.06, GOOD);
+            k.rect(0.1, 0.38, 0.9, 0.92, 0.06, NAVY);
+            k.rect(0.26, 0.38, 0.74, 0.46, 0.0, INK);
+            k.rect(0.1, 0.56, 0.9, 0.64, 0.0, ACCENT_SOFT);
+        }
+        Icon::Mayor => {
+            k.rect(0.3, 0.06, 0.7, 0.34, 0.03, INK);
+            k.rect(0.2, 0.3, 0.8, 0.38, 0.03, INK);
+            k.rect(0.3, 0.26, 0.7, 0.3, 0.0, BRICK);
+            k.circle(0.5, 0.5, 0.14, Color32::from_rgb(232, 196, 160));
+            let body: Vec<(f32, f32)> = (0..=10).map(|i| PI + PI * i as f32 / 10.0).map(|a| (0.5 + 0.3 * a.cos(), 0.98 + 0.32 * a.sin())).collect();
+            k.poly(&body, NAVY);
+            k.line((0.32, 0.72), (0.62, 0.96), 0.08, GOLD);
+        }
+        Icon::Check => {
+            k.circle(0.5, 0.5, 0.42, GOOD);
+            k.path(&[(0.3, 0.52), (0.44, 0.66), (0.7, 0.36)], 0.1, PAPER);
+        }
+        Icon::Cross => {
+            k.circle(0.5, 0.5, 0.42, BAD);
+            k.line((0.34, 0.34), (0.66, 0.66), 0.1, PAPER);
+            k.line((0.66, 0.34), (0.34, 0.66), 0.1, PAPER);
         }
         Icon::Plane => {
             k.poly(&[(0.46, 0.08), (0.54, 0.08), (0.56, 0.92), (0.44, 0.92)], STEEL);

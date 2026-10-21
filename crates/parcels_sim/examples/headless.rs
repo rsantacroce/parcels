@@ -22,6 +22,13 @@ fn main() {
     while s.state.tick < years * tpy {
         let r = s.tick();
         let c = &s.state.city;
+        for id in r.letters_new.iter().chain(&r.letters_granted).chain(&r.letters_missed) {
+            let l = c.mayor.letter(*id).unwrap();
+            println!("t{:>5} letter #{id} {:?} from {}: {}", s.state.tick, l.state, l.from, l.goal());
+        }
+        if let Some(e) = r.election {
+            println!("t{:>5} election at {}%: {}", s.state.tick, e.approval, if e.won { "re-elected" } else { "lost" });
+        }
         if trace {
             for cmd in &r.applied {
                 let what = match &cmd.kind {
@@ -42,8 +49,8 @@ fn main() {
                 st.land_value_total / s.state.map.len() as u64, st.demand
             );
             println!(
-                "        approval {}% ({}) jobless {}% mood {:?} issue {:?}",
-                st.approval_percent(), parcels_sim::mood_word(st.approval_percent()), st.jobless_percent, st.mood, st.top_issue()
+                "        approval {}% ({}) goodwill {} jobless {}% mood {:?} issue {:?}",
+                st.approval_percent(), parcels_sim::mood_word(st.approval_percent()), c.mayor.goodwill, st.jobless_percent, st.mood, st.top_issue()
             );
         }
     }

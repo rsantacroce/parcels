@@ -137,6 +137,28 @@ pub struct Config {
     /// taxed at base land value: factories don't care about the view.
     pub tax_divisor: i64,
 
+    // ---- Mayor ----
+    /// Months between elections.
+    pub election_interval_months: u16,
+    /// Approval, whole percent, needed to win an election.
+    pub reelection_percent: u8,
+    /// Residential demand (per mille) moves by (approval − 50%, in tenths of a
+    /// percent) × this / 100: a popular mayor draws people in.
+    pub approval_demand_weight: i32,
+    /// Chance per month that a resident writes in.
+    pub letter_chance_per_mille: u16,
+    pub max_open_letters: u8,
+    /// No letters until the town has this many people.
+    pub letters_min_population: u32,
+    /// Months a resident waits before giving up on a request.
+    pub letter_months: u16,
+    /// Goodwill (tenths of a percent of approval) for a granted / missed request.
+    pub letter_reward: i32,
+    pub letter_penalty: i32,
+    pub goodwill_cap: i32,
+    /// Goodwill fades by this percent each month.
+    pub goodwill_fade_percent: i32,
+
     // ---- Autoplay ----
     /// Ticks between the autoplay builder's moves (title-screen city, tuning runs).
     pub ai_think_interval: u32,
@@ -282,6 +304,18 @@ impl Default for Config {
             fire_rubble_ticks: 30,
 
             tax_divisor: 1_500,
+
+            election_interval_months: 48,
+            reelection_percent: 50,
+            approval_demand_weight: 40,
+            letter_chance_per_mille: 500,
+            max_open_letters: 3,
+            letters_min_population: 60,
+            letter_months: 12,
+            letter_reward: 60,
+            letter_penalty: 40,
+            goodwill_cap: 200,
+            goodwill_fade_percent: 8,
 
             ai_think_interval: 8,
         }

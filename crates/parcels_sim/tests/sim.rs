@@ -255,3 +255,81 @@ fn high_taxes_cost_approval_and_show_as_the_top_issue() {
 fn s_neutral() -> u8 {
     Config::default().neutral_tax_rate
 }
+
+#[test]
+fn granted_letters_earn_goodwill_and_ignored_ones_cost_it() {
+    let letter = |s: &GameState, ask: Ask| Letter {
+        id: 0,
+        from: "Ada Abbott".into(),
+        ask,
+        at: Pos::new(0, 0),
+        sent: s.tick,
+        due: s.tick + 3,
+        state: LetterState::Open,
+    };
+    let mut s = Session::new(small_city(6));
+    s.state.city.tax_rate = 12;
+    let l = letter(&s.state, Ask::TaxesAtMost(8));
+    s.state.city.mayor.letters.push(l);
+    let r = s.tick();
+    assert!(r.letters_granted.is_empty());
+    s.submit(CommandKind::SetTaxRate { rate: 8 });
+    let r = s.tick();
+    assert_eq!(r.letters_granted, vec![0]);
+    assert_eq!(s.state.city.mayor.letters[0].state, LetterState::Granted);
+    assert!(s.state.city.mayor.goodwill > 0);
+
+    let mut s = Session::new(small_city(6));
+    s.state.city.tax_rate = 12;
+    let l = letter(&s.state, Ask::TaxesAtMost(8));
+    s.state.city.mayor.letters.push(l);
+    let missed: Vec<u32> = (0..4).flat_map(|_| s.tick().letters_missed).collect();
+    assert_eq!(missed, vec![0]);
+    assert!(s.state.city.mayor.goodwill < 0);
+}
+
+#[test]
+fn elections_are_won_or_lost_on_approval() {
+    let run = |approval: u16| {
+        let mut config = small_city(8).config;
+        config.election_interval_months = 1;
+        let mut s = Session::new(GameState::new(&NewGame::new(8, config, "Testville")));
+        s.state.city.stats.approval = approval;
+        let tpm = s.state.config.ticks_per_month;
+        let results: Vec<Election> = (0..tpm).filter_map(|_| s.tick().election).collect();
+        assert_eq!(results.len(), 1);
+        assert_eq!(s.state.city.mayor.next_election, 2 * tpm as u64);
+        results[0].won
+    };
+    assert!(run(800));
+    assert!(!run(200));
+}
+
+#[test]
+fn residents_write_in_about_what_bothers_them() {
+    let mut s = Session::new(small_city(9));
+    dry(&mut s.state);
+    s.state.config.letter_chance_per_mille = 1000;
+    // A big unpowered neighbourhood with harsh taxes: plenty to complain about.
+    for p in Rect::from_corners(Pos::new(0, 0), Pos::new(9, 9)).iter() {
+        let t = s.state.map.tile_mut(p);
+        t.kind = TileKind::Zone(Zone::Residential, Density::Low);
+        t.level = 1;
+    }
+    s.submit(CommandKind::SetTaxRate { rate: 20 });
+    let tpm = s.state.config.ticks_per_month;
+    let mut new = Vec::new();
+    for _ in 0..tpm * 6 {
+        new.extend(s.tick().letters_new);
+    }
+    assert!(!new.is_empty());
+    let m = &s.state.city.mayor;
+    assert!(m.open().count() <= s.state.config.max_open_letters as usize);
+    // Never two open letters asking for the same thing.
+    let open: Vec<&Letter> = m.open().collect();
+    for (i, a) in open.iter().enumerate() {
+        for b in &open[i + 1..] {
+            assert!(!a.ask.same_kind(b.ask));
+        }
+    }
+}

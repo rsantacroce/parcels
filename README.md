@@ -60,11 +60,19 @@ traffic, neighbourhoods, finances); together they set the mayor's approval, and 
 worst one is shown as the city's top issue. Milestones are announced as the
 population grows.
 
+**Being mayor.** Residents write letters about whatever bothers them most: a school
+near their home, a park, lower taxes, cleaner air, quieter streets. Each letter
+asks for one concrete thing and gives you a year. Granting it earns goodwill that
+lifts approval for a while; letting it lapse costs some. Every four years the city
+votes, and you need 50% approval to win. Lose and you can stay on as caretaker.
+Approval also feeds back into growth: a popular mayor draws newcomers, an
+unpopular one drives them away.
+
 ## Layout
 
 | Crate | What it does |
 | --- | --- |
-| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `City`, `Command`, the building catalog, terrain generation, the six-stage tick pipeline, autoplay, replays. |
+| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `City`, `Command`, the building catalog, terrain generation, the eight-stage tick pipeline, autoplay, replays. |
 | `parcels_game` | Bevy client: 3D world built from chunked meshes (`world/`), orbit and street-level cameras, day/night, cosmetic cars and pedestrians, build tools, egui HUD and minimap, title screen, saves, settings, synthesized audio. |
 
 Balance constants live in `config/balance.ron` (money in cents, land value
@@ -103,7 +111,8 @@ tag, run the workflow by hand: `gh workflow run release.yml -f tag=v0.2.0`.
   → growth (every eligible zone competes for one pool of newcomers, ranked by
   land value) → land value (parks, river, shops, utilities, minus pollution and
   traffic, spread by distance) → economy (taxes and upkeep, clamped at a debt
-  floor) → status (resident mood per factor; approval drifts toward the total).
+  floor) → status (resident mood per factor; approval drifts toward the total plus
+  goodwill) → mayor (letters granted or lapsed, new letters, elections).
 - **Determinism guards:** replay, snapshot and arrival-order tests, plus a test
   that fails if `f32`, `f64`, `HashMap`, `Instant` and similar show up in sim
   source.
@@ -116,6 +125,5 @@ tag, run the workflow by hand: `gh workflow run release.yml -f tag=v0.2.0`.
 
 ## Not built yet (deliberately)
 
-Curved roads, per-car traffic simulation, terrain elevation, public transport,
-client-side prediction, accounts and matchmaking. Saves from v0.1 can't be loaded
+Curved roads, per-car traffic simulation, terrain elevation, public transport. Saves from v0.1 can't be loaded
 (the tile format changed).

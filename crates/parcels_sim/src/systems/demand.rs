@@ -1,7 +1,7 @@
 //! Stage 3: R/C/I/O demand.
 //!
 //! The raw balance of residents and jobs, shifted by the tax rate: high taxes
-//! make the city less attractive to newcomers.
+//! make the city less attractive to newcomers, and so does an unpopular mayor.
 
 use crate::map::{TileKind, Zone};
 use crate::state::GameState;
@@ -56,6 +56,8 @@ pub fn run(state: &mut GameState) {
 
     let neutral = c.neutral_tax_rate as i32;
     let tax_shift = (state.city.tax_rate as i32 - neutral) * c.tax_demand_penalty * 10;
+    // A popular mayor draws people in; an unpopular one drives them off.
+    let mood_shift = (state.city.stats.approval as i32 - 500) * c.approval_demand_weight / 100;
     let s = &mut state.city.stats;
     s.population = tp as u32;
     s.commercial_jobs = tc as u32;
@@ -65,6 +67,7 @@ pub fn run(state: &mut GameState) {
     s.developed_tiles = developed;
     s.raw_demand = raw;
     for z in 0..Zone::COUNT {
-        s.demand[z] = (norm[z] - tax_shift).clamp(-1000, 1000);
+        let mood = if z == Zone::Residential.index() { mood_shift } else { 0 };
+        s.demand[z] = (norm[z] - tax_shift + mood).clamp(-1000, 1000);
     }
 }

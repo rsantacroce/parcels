@@ -92,7 +92,7 @@ impl GameState {
 
     /// Advance one tick, applying `commands` (which must all be stamped with this
     /// tick). The pipeline order is fixed: commands, utilities, demand, growth,
-    /// land value, economy, status, mayor.
+    /// land value, commute, economy, status, mayor.
     pub fn step(&mut self, commands: &[Command]) -> TickReport {
         let mut report = TickReport { tick: self.tick, ..Default::default() };
 
@@ -101,6 +101,7 @@ impl GameState {
         systems::demand::run(self);
         systems::growth::run(self, &mut report);
         systems::land_value::run(self);
+        systems::commute::run(self);
         systems::economy::run(self);
         systems::status::run(self);
         systems::mayor::run(self, &mut report);

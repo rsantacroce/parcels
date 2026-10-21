@@ -1,10 +1,11 @@
-//! Stage 5: service coverage, traffic, pollution, crime and land value.
+//! Stage 5: service coverage, pollution, crime and land value.
 //!
 //! Every effect spreads by physical distance: a park lifts the tiles around it,
 //! and a factory drags its neighbours' values down.
 
 use crate::catalog::Service;
-use crate::map::{Density, Road, Terrain, TileKind, Zone};
+use crate::map::{Density, Terrain, TileKind, Zone};
+use crate::systems::commute;
 use crate::state::GameState;
 
 /// Add `strength` at `center`, falling off linearly to zero just past `radius`.
@@ -23,13 +24,15 @@ pub fn run(state: &mut GameState) {
     let n = state.map.len();
 
     // Service coverage from powered service buildings, measured from the
-    // middle of the footprint.
+    // middle of the footprint. Bus stops work when a depot runs their roads.
+    let buses = commute::BusNetwork::new(state);
     let mut coverage = vec![0u8; n];
     for i in 0..n {
         let t = &state.map.tiles[i];
         let TileKind::Building(b) = t.kind else { continue };
         let Some(service) = b.service() else { continue };
-        if !t.is_anchor() || !t.powered {
+        let working = if service == Service::Transit { buses.stop_works(state, i) } else { t.powered };
+        if !t.is_anchor() || !working {
             continue;
         }
         let center = state.map.footprint_at(state.map.pos(i)).center();
@@ -38,17 +41,8 @@ pub fn run(state: &mut GameState) {
         }
     }
 
-    // Traffic: a road tile's congestion comes from the people and jobs around it.
-    let mut traffic = vec![0u32; n];
-    for i in 0..n {
-        if let TileKind::Road(road) = state.map.tiles[i].kind {
-            let near: u32 = state.map.within(state.map.pos(i), c.traffic_radius).map(|(j, _)| state.occupants(j)).sum();
-            traffic[i] = near / c.traffic_divisor.max(1) as u32;
-            if road == Road::Avenue {
-                traffic[i] = traffic[i] * c.avenue_traffic_percent as u32 / 100;
-            }
-        }
-    }
+    // Traffic comes from the commute stage (last tick's trips).
+    let traffic: Vec<u32> = state.map.tiles.iter().map(|t| t.traffic as u32).collect();
 
     // Pollution from industry, plants and busy roads; amenities; crime pressure.
     let mut pollution = vec![0u32; n];
@@ -149,7 +143,6 @@ pub fn run(state: &mut GameState) {
         let t = &mut state.map.tiles[i];
         t.land_value = (cur + stepv) as u16;
         t.pollution = pollution[i] as u16;
-        t.traffic = traffic[i].min(u16::MAX as u32) as u16;
         t.crime = crime as u16;
         t.coverage = coverage[i];
     }

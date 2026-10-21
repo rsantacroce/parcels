@@ -88,6 +88,8 @@ pub enum Icon {
     Plane,
     Cube,
     Mail,
+    Bus,
+    BusStop,
     Ballot,
     Mayor,
     Check,
@@ -115,6 +117,8 @@ impl Icon {
             Buildable::WaterPipe => Icon::Pipe,
             Buildable::Zone(z, _) => Icon::for_zone(z),
             Buildable::Building(b) => match b {
+                Building::BusStop => Icon::BusStop,
+                Building::BusDepot => Icon::Bus,
                 Building::CoalPlant | Building::GasPlant => Icon::Plant,
                 Building::WindTurbine => Icon::Wind,
                 Building::SolarFarm => Icon::Sun,
@@ -147,6 +151,7 @@ impl Icon {
             Ask::Service(Service::Fire) => Icon::Fire,
             Ask::Service(Service::Health) => Icon::Health,
             Ask::Service(Service::Education) => Icon::School,
+            Ask::Service(Service::Transit) => Icon::BusStop,
             Ask::Park => Icon::Parks,
             Ask::TaxesAtMost(_) => Icon::Coins,
             Ask::Supply(Utility::Power) => Icon::Power,
@@ -590,6 +595,25 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, bg: Color32) {
             k.path(&[(0.1, 0.26), (0.5, 0.56), (0.9, 0.26)], 0.05, INK);
             k.frame(0.08, 0.22, 0.92, 0.78, 0.06, 0.06, INK);
             k.circle(0.8, 0.3, 0.12, BAD);
+        }
+        Icon::Bus => {
+            k.rect(0.08, 0.2, 0.92, 0.78, 0.1, GOLD);
+            k.rect(0.14, 0.28, 0.86, 0.5, 0.04, NAVY);
+            for x in [0.38f32, 0.62] {
+                k.line((x, 0.28), (x, 0.5), 0.04, GOLD);
+            }
+            k.rect(0.08, 0.62, 0.92, 0.66, 0.0, INK_SOFT);
+            k.circle(0.28, 0.8, 0.09, INK);
+            k.circle(0.72, 0.8, 0.09, INK);
+        }
+        Icon::BusStop => {
+            k.line((0.72, 0.1), (0.72, 0.92), 0.07, INK_SOFT);
+            k.rect(0.56, 0.08, 0.9, 0.34, 0.06, GOLD);
+            k.text(0.73, 0.22, 0.2, "B", INK);
+            k.rect(0.08, 0.36, 0.56, 0.42, 0.02, BRICK);
+            k.rect(0.1, 0.42, 0.14, 0.9, 0.0, INK_SOFT);
+            k.rect(0.12, 0.44, 0.5, 0.84, 0.02, SKY.gamma_multiply(0.5));
+            k.rect(0.16, 0.66, 0.5, 0.72, 0.0, BARK);
         }
         Icon::Ballot => {
             k.poly(&[(0.3, 0.06), (0.7, 0.06), (0.7, 0.46), (0.3, 0.46)], PAPER);

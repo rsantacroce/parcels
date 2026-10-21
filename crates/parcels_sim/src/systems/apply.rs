@@ -94,6 +94,9 @@ pub fn plan_place(state: &GameState, area: &Area, what: Buildable) -> Result<Pla
             if !fp.iter().all(|p| can_place(state.map.tile(p), what)) {
                 continue;
             }
+            if b.needs_road() && !fp.iter().any(|p| state.map.neighbors4(state.map.idx(p)).any(|j| state.map.tiles[j].kind.is_road())) {
+                continue;
+            }
             plan.cost += state.config.building(b).cost;
             for p in fp.iter() {
                 seen.insert(p);

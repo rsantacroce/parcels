@@ -1,7 +1,8 @@
-//! Stage 8: the mayor's office. Letters are checked every tick; once a month
+//! Stage 9: the mayor's office. Letters are checked every tick; once a month
 //! goodwill fades, a resident may write in, and on election day the city votes.
 
-use crate::catalog::Service;
+use crate::catalog::{Building, Service};
+use crate::map::TileKind;
 use crate::city::{Factor, Utility};
 use crate::map::Pos;
 use crate::mayor::{is_home, near_park, resident_name, street_traffic, Ask, Election, Letter, LetterState};
@@ -128,7 +129,13 @@ fn compose(state: &GameState, rng: &mut Rng, tpm: u64) -> Option<Letter> {
         Factor::Taxes if state.city.tax_rate > neutral => (Ask::TaxesAtMost(neutral), any(rng, &|_| true)?),
         Factor::Traffic => {
             let p = worst(&|p| street_traffic(map, p), &|p| street_traffic(map, p) > 30)?;
-            (Ask::QuietStreets(street_traffic(map, p) * 2 / 3), p)
+            // Once the city runs buses, people ask for a stop instead.
+            let depot = map.tiles.iter().any(|t| t.kind == TileKind::Building(Building::BusDepot));
+            if depot && !map.tile(p).covered(Service::Transit) && rng.chance(500) {
+                (Ask::Service(Service::Transit), p)
+            } else {
+                (Ask::QuietStreets(street_traffic(map, p) * 2 / 3), p)
+            }
         }
         Factor::Neighbourhoods => (Ask::Park, any(rng, &|p| !near_park(map, p))?),
         Factor::Budget if state.city.treasury < 0 => (Ask::OutOfDebt, any(rng, &|_| true)?),

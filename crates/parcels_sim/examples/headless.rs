@@ -49,8 +49,9 @@ fn main() {
                 st.land_value_total / s.state.map.len() as u64, st.demand
             );
             println!(
-                "        approval {}% ({}) goodwill {} jobless {}% mood {:?} issue {:?}",
-                st.approval_percent(), parcels_sim::mood_word(st.approval_percent()), c.mayor.goodwill, st.jobless_percent, st.mood, st.top_issue()
+                "        approval {}% ({}) goodwill {} jobless {}% mood {:?} issue {:?}\n        commute {} min, {} commuters, {} by bus, {} stranded, max traffic {}",
+                st.approval_percent(), parcels_sim::mood_word(st.approval_percent()), c.mayor.goodwill, st.jobless_percent, st.mood, st.top_issue(),
+                st.commute_minutes, st.commuters, st.bus_riders, st.stranded, s.state.map.tiles.iter().map(|t| t.traffic).max().unwrap_or(0)
             );
         }
     }

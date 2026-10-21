@@ -18,6 +18,7 @@ pub struct UtilityLedger {
 /// Derived numbers, refreshed every tick. Part of the state (and its hash) so a
 /// replay reproduces exactly what the HUD showed.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CityStats {
     pub population: u32,
     pub commercial_jobs: u32,
@@ -37,6 +38,15 @@ pub struct CityStats {
     pub developed_tiles: u32,
     /// Buildings lost to fire since the city was founded.
     pub fires: u32,
+    /// Residents travelling to work each day, and how many of them by bus.
+    pub commuters: u32,
+    pub bus_riders: u32,
+    /// Residents whose homes have no road route to any job.
+    pub stranded: u32,
+    /// Average trip to work, minutes.
+    pub commute_minutes: u16,
+    /// Bus fares per tick, cents.
+    pub fares: i64,
     /// Residents without a job, percent.
     pub jobless_percent: u8,
     /// What residents think of each part of city life, roughly -20..=+10 each.

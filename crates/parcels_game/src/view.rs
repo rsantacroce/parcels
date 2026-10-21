@@ -15,10 +15,11 @@ pub enum Overlay {
     Traffic,
     Crime,
     Services,
+    Transit,
 }
 
 impl Overlay {
-    pub const ALL: [Overlay; 9] = [
+    pub const ALL: [Overlay; 10] = [
         Overlay::None,
         Overlay::LandValue,
         Overlay::Power,
@@ -28,6 +29,7 @@ impl Overlay {
         Overlay::Traffic,
         Overlay::Crime,
         Overlay::Services,
+        Overlay::Transit,
     ];
 
     pub fn label(self) -> &'static str {
@@ -41,12 +43,13 @@ impl Overlay {
             Overlay::Traffic => "Traffic",
             Overlay::Crime => "Crime",
             Overlay::Services => "Services",
+            Overlay::Transit => "Buses",
         }
     }
 
     /// Number key that selects it.
     pub fn key(self) -> &'static str {
-        ["1", "2", "3", "4", "5", "6", "7", "8", "9"][Overlay::ALL.iter().position(|&o| o == self).unwrap()]
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"][Overlay::ALL.iter().position(|&o| o == self).unwrap()]
     }
 }
 
@@ -96,15 +99,21 @@ pub fn overlay_tint(state: &GameState, overlay: Overlay, idx: usize) -> Option<(
         Overlay::None => return None,
         Overlay::LandValue => (heat(255 - t.land_value as u32 * 255 / c.land_value_max.max(1) as u32), 200),
         Overlay::Pollution => (heat(t.pollution as u32 * 255 / 200), 200),
-        Overlay::Traffic => (heat(t.traffic as u32 * 255 / 60), if t.kind.is_road() { 230 } else { 50 }),
+        // Full capacity reads orange, half again over it red.
+        Overlay::Traffic => (heat(t.traffic as u32 * 180 / c.traffic_at_capacity.max(1)), if t.kind.is_road() { 230 } else { 50 }),
         Overlay::Crime => (heat(t.crime as u32 * 255 / 80), 190),
         Overlay::Density => (heat(state.occupants(idx) * 255 / max_occ), if t.kind.is_zone() { 210 } else { 40 }),
         Overlay::Power => utility(t.conducts_power(), t.powered),
         Overlay::Water => utility(t.conducts_water(), t.watered),
         Overlay::Services => {
-            let n = Service::ALL.iter().filter(|s| t.covered(**s)).count() as u32;
+            let n = [Service::Police, Service::Fire, Service::Health, Service::Education].iter().filter(|s| t.covered(**s)).count() as u32;
             (heat(255 - n * 255 / 4), 190)
         }
+        Overlay::Transit => match t.kind {
+            TileKind::Building(parcels_sim::Building::BusStop | parcels_sim::Building::BusDepot) => ([240, 180, 30], 240),
+            _ if t.covered(Service::Transit) => ([60, 200, 120], if t.kind.is_road() { 120 } else { 170 }),
+            _ => ([20, 20, 30], 110),
+        },
     })
 }
 

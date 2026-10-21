@@ -312,7 +312,7 @@ fn ground_color(cx: &Ctx, p: Pos, idx: usize, t: &Tile) -> [u8; 3] {
         TileKind::Building(b) => match b {
             Building::Park | Building::Playground | Building::SportsField => grass,
             Building::Plaza | Building::Monument | Building::TownHall => [196, 190, 176],
-            Building::Airport | Building::Stadium => [120, 122, 118],
+            Building::Airport | Building::Stadium | Building::BusDepot => [120, 122, 118],
             _ => [140, 138, 130],
         },
         _ if t.terrain == Terrain::Forest => shade(grass, 82),
@@ -420,7 +420,15 @@ fn road(cx: &mut Ctx, p: Pos, t: &Tile, kind: Road) {
     let (n, s, w, e) = (is_road(0, -1), is_road(0, 1), is_road(-1, 0), is_road(1, 0));
     let bridge = t.terrain == Terrain::Water;
     let y = if bridge { 0.4 } else { 0.03 };
-    let asphalt = cx.c(if kind == Road::Avenue { [58, 58, 64] } else { ASPHALT });
+    let raw = if kind == Road::Avenue { [58, 58, 64] } else { ASPHALT };
+    // The traffic and bus views colour the road surface itself.
+    let tint = matches!(cx.look.overlay, Overlay::Traffic | Overlay::Transit)
+        .then(|| overlay_tint(state, cx.look.overlay, state.map.idx(p)))
+        .flatten();
+    let asphalt = match tint {
+        Some((c, a)) => mix(raw, c, a),
+        None => cx.c(raw),
+    };
     cx.m.solid.flat(o.x, o.z, o.x + TILE, o.z + TILE, y, asphalt);
     let (x0, z0, x1, z1) = (o.x, o.z, o.x + TILE, o.z + TILE);
     if bridge {
@@ -827,6 +835,44 @@ fn building(cx: &mut Ctx, p: Pos, b: Building, t: &Tile) {
     };
     let k = |c: [u8; 3], cx: &Ctx| cx.c(c);
     match b {
+        Building::BusStop => {
+            pad(cx, 0.2, [196, 192, 182]);
+            let face = facing(cx, p);
+            let frame = [70, 78, 90];
+            let (a, bb) = lot(o, face, 1.6, 3.4, 8.4, 3.7);
+            cx.m.glass.block(a, bb.with_y(2.8), [150, 180, 200]);
+            for u in [1.6f32, 8.1] {
+                let (a, bb) = lot(o, face, u, 1.4, u + 0.3, 3.7);
+                cx.m.solid.block(a, bb.with_y(2.8), frame);
+            }
+            let (a, bb) = lot(o, face, 1.2, 1.2, 8.8, 4.0);
+            cx.m.solid.block(a.with_y(2.8), bb.with_y(3.1), k([230, 170, 40], cx));
+            let (a, bb) = lot(o, face, 2.6, 2.6, 7.4, 3.2);
+            cx.m.solid.block(a.with_y(0.5), bb.with_y(0.7), [140, 100, 70]);
+            let (a, bb) = lot(o, face, 9.0, 1.0, 9.25, 1.25);
+            cx.m.solid.block(a, bb.with_y(4.2), frame);
+            let (a, bb) = lot(o, face, 8.7, 0.95, 9.55, 1.3);
+            cx.m.solid.block(a.with_y(3.2), bb.with_y(4.2), [230, 170, 40]);
+            cx.m.lights.block(a.with_y(3.5) - Vec3::splat(0.02), bb.with_y(3.9) + Vec3::splat(0.02), [255, 230, 160]);
+        }
+        Building::BusDepot => {
+            pad(cx, 0.4, [92, 92, 96]);
+            let wall = k([200, 186, 160], cx);
+            cx.m.solid.cuboid(o + Vec3::new(1.5, 0.0, 11.0), o + Vec3::new(18.5, 8.0, 19.0), wall, [150, 70, 56]);
+            for i in 0..3 {
+                let x = 2.5 + i as f32 * 5.5;
+                cx.m.solid.block(o + Vec3::new(x, 0.0, 10.9), o + Vec3::new(x + 4.5, 6.0, 11.0), [210, 210, 204]);
+            }
+            for (i, z) in [3.0f32, 7.0].iter().enumerate() {
+                let x0 = 3.0 + i as f32 * 3.0;
+                let at = o + Vec3::new(x0, 0.0, *z);
+                cx.m.solid.cuboid(at + Vec3::new(0.0, 0.4, -1.2), at + Vec3::new(10.0, 3.0, 1.2), [230, 170, 40], [220, 220, 216]);
+                cx.m.solid.block(at + Vec3::new(0.4, 1.6, -1.25), at + Vec3::new(9.6, 2.5, 1.25), [50, 64, 84]);
+            }
+            for x in [3.0f32, 8.0, 13.0] {
+                cx.m.solid.flat(o.x + x, o.z + 1.0, o.x + x + 0.2, o.z + 9.5, 0.06, [230, 230, 220]);
+            }
+        }
         Building::CoalPlant => {
             pad(cx, 0.5, [110, 108, 104]);
             let hall = k([140, 70, 56], cx);

@@ -333,3 +333,81 @@ fn residents_write_in_about_what_bothers_them() {
         }
     }
 }
+
+/// Homes at the west end of a long street, factories at the east end.
+fn commuter_town(road: Road) -> GameState {
+    let mut state = small_city(10);
+    dry(&mut state);
+    state.config.decay_chance_per_mille = 0;
+    // Depots run without power here, to keep the setup small.
+    let mut depot = state.config.building(Building::BusDepot);
+    depot.power_draw = 0;
+    state.config.buildings.insert(Building::BusDepot, depot);
+    for x in 0..32 {
+        state.map.tile_mut(Pos::new(x, 5)).kind = TileKind::Road(road);
+    }
+    for (zone, xs) in [(Zone::Residential, 0..6), (Zone::Industrial, 24..30)] {
+        for x in xs {
+            for y in [3, 4, 6, 7] {
+                let t = state.map.tile_mut(Pos::new(x, y));
+                t.kind = TileKind::Zone(zone, Density::Low);
+                t.level = 3;
+            }
+        }
+    }
+    state
+}
+
+fn traffic_at(s: &GameState, x: u16) -> u16 {
+    s.map.tile(Pos::new(x, 5)).traffic
+}
+
+#[test]
+fn commuters_load_the_road_between_home_and_work() {
+    let mut s = Session::new(commuter_town(Road::Street));
+    s.tick();
+    let st = &s.state.city.stats;
+    assert!(st.commuters > 0 && st.stranded == 0);
+    assert!(traffic_at(&s.state, 15) > 0, "the street between them is busy");
+    assert_eq!(traffic_at(&s.state, 31), 0, "nobody drives past the factories");
+    assert!(st.commute_minutes >= 15, "a long way to work: {} min", st.commute_minutes);
+
+    // The same trips on an avenue are less congested.
+    let mut a = Session::new(commuter_town(Road::Avenue));
+    a.tick();
+    assert!(traffic_at(&a.state, 15) < traffic_at(&s.state, 15));
+}
+
+#[test]
+fn homes_cut_off_from_jobs_are_stranded() {
+    let mut state = commuter_town(Road::Street);
+    state.map.tile_mut(Pos::new(15, 5)).kind = TileKind::Empty;
+    let mut s = Session::new(state);
+    s.tick();
+    assert!(s.state.city.stats.stranded > 0);
+    assert!(s.state.city.stats.jobless_percent > 0);
+}
+
+#[test]
+fn buses_take_commuters_off_the_road_and_earn_fares() {
+    let mut s = Session::new(commuter_town(Road::Street));
+    s.state.city.treasury = 100_000_00;
+    let r = place(&mut s, (10, 6), (10, 6), Buildable::Building(Building::BusStop));
+    assert!(r.rejected.is_empty());
+    // Off the road: refused.
+    let r = place(&mut s, (10, 10), (10, 10), Buildable::Building(Building::BusStop));
+    assert!(matches!(r.rejected[0].1, Rejection::NothingToDo));
+    let before = traffic_at(&s.state, 15);
+    for (x, y) in [(6, 4), (23, 4)] {
+        s.state.map.tile_mut(Pos::new(x, y)).kind = TileKind::Empty;
+        place(&mut s, (x, y), (x, y), Buildable::Building(Building::BusStop));
+    }
+    place(&mut s, (14, 6), (14, 6), Buildable::Building(Building::BusDepot));
+    for _ in 0..6 {
+        s.tick();
+    }
+    let st = &s.state.city.stats;
+    assert!(st.bus_riders > 0, "riders {}", st.bus_riders);
+    assert!(st.fares > 0);
+    assert!(traffic_at(&s.state, 15) < before, "{} < {before}", traffic_at(&s.state, 15));
+}

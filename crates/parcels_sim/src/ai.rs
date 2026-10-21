@@ -5,6 +5,7 @@
 //!
 //! Deterministic: depends only on the state passed in.
 
+use crate::systems::commute::BusNetwork;
 use crate::catalog::{Building, Service};
 use crate::command::{Area, CommandKind};
 use crate::map::{Buildable, Density, Pos, Rect, Road, Terrain, TileKind, Zone};
@@ -237,6 +238,46 @@ impl<'a> Ctx<'a> {
                     let reach = c.building(b).service_radius as u32;
                     if let Some(c) = self.place_building(b, at, Some(reach), false) {
                         return Some(c);
+                    }
+                }
+            }
+        }
+
+        // 4b. Buses once the town is big enough: one depot, then stops by the
+        //     homes and jobs they don't reach yet.
+        if stats.population >= 3000 && stats.power.unserved == 0 {
+            if self.count(Building::BusDepot) == 0 {
+                if self.treasury() > 10_000_00 && self.can_run(Building::BusDepot) {
+                    if let Some(c) = self.place_building(Building::BusDepot, None, None, false) {
+                        return Some(c);
+                    }
+                }
+            } else if self.count(Building::BusStop) < stats.population as usize / 800 && self.can_run(Building::BusStop) {
+                // The free lot beside a road that would bring the most
+                // uncovered homes and jobs within reach of a stop.
+                let radius = c.building(Building::BusStop).service_radius;
+                let buses = BusNetwork::new(self.state);
+                let best = r
+                    .iter()
+                    .filter(|&p| {
+                        let t = map.tile(p);
+                        t.kind == TileKind::Empty && t.terrain != Terrain::Water && !t.wire && !self.on_street_plan(p)
+                    })
+                    .filter(|&p| buses.stop_works(self.state, map.idx(p)))
+                    .map(|p| {
+                        let gain: u32 = map
+                            .within(p, radius)
+                            .filter(|&(j, _)| map.tiles[j].kind.is_zone() && !map.tiles[j].covered(Service::Transit))
+                            .map(|(j, _)| self.state.occupants(j))
+                            .sum();
+                        (gain, std::cmp::Reverse(p))
+                    })
+                    .max();
+                if let Some((gain, std::cmp::Reverse(p))) = best {
+                    if gain >= 60 {
+                        if let Some(c) = self.try_place(vec![p], Buildable::Building(Building::BusStop)) {
+                            return Some(c);
+                        }
                     }
                 }
             }

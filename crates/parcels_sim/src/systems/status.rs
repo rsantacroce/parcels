@@ -1,4 +1,4 @@
-//! Stage 7: how residents feel. Each factor is scored from what the homes
+//! Stage 8: how residents feel. Each factor is scored from what the homes
 //! around the city actually experience, weighted by how many people live there,
 //! and the approval rating drifts toward the total plus the mayor's goodwill
 //! from answered letters.
@@ -35,7 +35,9 @@ pub fn run(state: &mut GameState) {
 
     let jobs = (s.commercial_jobs + s.industrial_jobs + s.office_jobs + s.public_jobs) as i64;
     let workers_wanted = jobs * c.workers_per_100_jobs as i64 / 100;
-    let jobless = if pop > 0 { ((pop - workers_wanted).max(0) * 100 / pop).min(100) } else { 0 };
+    // People with no road to any job are out of work too.
+    let out = (pop - workers_wanted).max(s.stranded as i64);
+    let jobless = if pop > 0 { (out.max(0) * 100 / pop).min(100) } else { 0 };
 
     let need = (s.power.demand + s.water.demand) as i64;
     let short = (s.power.unserved + s.water.unserved) as i64;

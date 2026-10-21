@@ -1,9 +1,10 @@
 //! Cosmetic street life: cars and pedestrians wandering the road network, in
-//! numbers that follow the neighbourhood's population. Render-only: they never
+//! numbers that follow the population. Cars favour the roads the commute
+//! model says are busy, and buses run from stops when people ride them. Render-only: they never
 //! feed back into the simulation, so their randomness is free to be unseeded.
 
 use bevy::prelude::*;
-use parcels_sim::{GameState, Pos, Road, Terrain, TileKind};
+use parcels_sim::{Building, GameState, Pos, Road, Terrain, TileKind};
 
 use super::meshgen::{noise, MeshBuf, TILE};
 use crate::driver::Driver;
@@ -18,6 +19,7 @@ pub struct Agent {
     /// Sideways offset from the road centre line (lane or sidewalk).
     side: f32,
     walker: bool,
+    bus: bool,
 }
 
 #[derive(Resource)]
@@ -119,7 +121,7 @@ pub fn populate(
     assets: Option<Res<LifeAssets>>,
     mut rng: ResMut<LifeRng>,
     agents: Query<(Entity, &Agent)>,
-    mut roads_cache: Local<(u64, u64, Vec<Pos>)>,
+    mut roads_cache: Local<(u64, u64, Vec<Pos>, Vec<Pos>)>,
 ) {
     let Some(assets) = assets else { return };
     let Some(state) = driver.as_ref().and_then(|d| d.state()) else {
@@ -134,10 +136,24 @@ pub fn populate(
         roads_cache.0 = generation;
         roads_cache.1 = state.tick;
         roads_cache.2 = state.map.bounds().iter().filter(|&p| is_road(state, p)).collect();
+        // Roads beside a bus stop, where buses start their rounds.
+        roads_cache.3 = roads_cache
+            .2
+            .iter()
+            .copied()
+            .filter(|&p| {
+                [(0i32, -1i32), (0, 1), (-1, 0), (1, 0)].iter().any(|(dx, dy)| {
+                    let q = Pos::new((p.x as i32 + dx).max(0) as u16, (p.y as i32 + dy).max(0) as u16);
+                    state.map.get(q).is_some_and(|t| t.kind == TileKind::Building(Building::BusStop))
+                })
+            })
+            .collect();
     }
     let roads = &roads_cache.2;
+    let stops = &roads_cache.3;
     let mut cars = 0usize;
     let mut walkers = 0usize;
+    let mut buses = 0usize;
     for (e, a) in &agents {
         // Bulldozed out from under them.
         if !is_road(state, a.from) || !is_road(state, a.to) {
@@ -146,6 +162,8 @@ pub fn populate(
         }
         if a.walker {
             walkers += 1;
+        } else if a.bus {
+            buses += 1;
         } else {
             cars += 1;
         }
@@ -157,26 +175,47 @@ pub fn populate(
     let f = settings.crowds.factor();
     let want_cars = ((roads.len() as f32 * 0.5 * busy * f) as usize).min(500);
     let want_walkers = ((roads.len() as f32 * 0.35 * busy * f) as usize).min(300);
+    let want_buses = if stops.is_empty() { 0 } else { ((state.city.stats.bus_riders as f32 / 60.0 * f).ceil() as usize).min(40) };
     for (e, a) in &agents {
-        let excess = if a.walker { walkers > want_walkers } else { cars > want_cars };
+        let excess = if a.walker {
+            walkers > want_walkers
+        } else if a.bus {
+            buses > want_buses
+        } else {
+            cars > want_cars
+        };
         if excess {
             commands.entity(e).despawn();
             if a.walker {
                 walkers -= 1;
+            } else if a.bus {
+                buses -= 1;
             } else {
                 cars -= 1;
             }
         }
     }
-    let mut spawn = |walker: bool, rng: &mut LifeRng| {
-        let from = roads[rng.next() as usize % roads.len()];
+    let mut spawn = |walker: bool, bus: bool, rng: &mut LifeRng| {
+        let from = if bus {
+            stops[rng.next() as usize % stops.len()]
+        } else {
+            // Rejection-sample toward busy roads so cars bunch up where the
+            // commute model puts them.
+            let mut p = roads[rng.next() as usize % roads.len()];
+            for _ in 0..4 {
+                if walker || (rng.next() % 64) < state.map.tile(p).traffic as u32 + 6 {
+                    break;
+                }
+                p = roads[rng.next() as usize % roads.len()];
+            }
+            p
+        };
         let next = road_neighbours(state, from);
         if next.is_empty() {
             return;
         }
         let to = next[rng.next() as usize % next.len()];
         let r = rng.next();
-        let bus = !walker && r % 23 == 0;
         let (mesh, mat) = if walker {
             (assets.person.clone(), assets.clothes[r as usize % assets.clothes.len()].clone())
         } else if bus {
@@ -197,14 +236,17 @@ pub fn populate(
             Mesh3d(mesh),
             MeshMaterial3d(mat),
             Transform::from_translation(center(from)),
-            Agent { from, to, t: (r % 100) as f32 / 100.0, speed, side, walker },
+            Agent { from, to, t: (r % 100) as f32 / 100.0, speed, side, walker, bus },
         ));
     };
     for _ in 0..(want_cars.saturating_sub(cars)).min(12) {
-        spawn(false, &mut rng);
+        spawn(false, false, &mut rng);
     }
     for _ in 0..(want_walkers.saturating_sub(walkers)).min(12) {
-        spawn(true, &mut rng);
+        spawn(true, false, &mut rng);
+    }
+    for _ in 0..(want_buses.saturating_sub(buses)).min(4) {
+        spawn(false, true, &mut rng);
     }
 }
 

@@ -89,11 +89,11 @@ impl Plugin for UiPlugin {
     }
 }
 
-/// `--hud city|budget|inbox|mayor|zones|views|paused`: open part of the HUD on start, for screenshots.
+/// `--hud city|budget|inbox|mayor|zones|views|traffic|buses|paused`: open part of the HUD on start, for screenshots.
 #[derive(Resource)]
 pub struct DevHud(pub String);
 
-fn enter_playing(mut hud: ResMut<Hud>, dev: Option<Res<DevHud>>, mut driver: Option<ResMut<Driver>>, mut ts: ResMut<ToolState>) {
+fn enter_playing(mut hud: ResMut<Hud>, dev: Option<Res<DevHud>>, mut driver: Option<ResMut<Driver>>, mut ts: ResMut<ToolState>, mut view: ResMut<View>) {
     hud.dialog = Dialog::None;
     hud.minimap_key = None;
     for part in dev.iter().flat_map(|d| d.0.split(',')) {
@@ -104,6 +104,8 @@ fn enter_playing(mut hud: ResMut<Hud>, dev: Option<Res<DevHud>>, mut driver: Opt
             "mayor" => hud.side = Some(Side::Mayor),
             "zones" => ts.set(Tool::Build(items(Category::Zones)[0])),
             "views" => hud.flyout = Some(Flyout::DataViews),
+            "traffic" => view.overlay = Overlay::Traffic,
+            "buses" => view.overlay = Overlay::Transit,
             "paused" => {
                 if let Some(d) = driver.as_mut() {
                     d.paused = true;
@@ -365,6 +367,7 @@ fn overlay_icon(o: Overlay) -> Icon {
         Overlay::Traffic => Icon::Car,
         Overlay::Crime => Icon::Police,
         Overlay::Services => Icon::School,
+        Overlay::Transit => Icon::Bus,
     }
 }
 
@@ -638,7 +641,7 @@ fn hud(
                     hud.flyout = None;
                 }
                 let on = hud.flyout == Some(Flyout::DataViews) || view.overlay != Overlay::None;
-                if icons::rail_button(ui, Icon::DataViews, "Data views", on).on_hover_text("1–9").clicked() {
+                if icons::rail_button(ui, Icon::DataViews, "Data views", on).on_hover_text("1–9, 0").clicked() {
                     hud.flyout = if hud.flyout == Some(Flyout::DataViews) { None } else { Some(Flyout::DataViews) };
                 }
             });
@@ -930,7 +933,22 @@ fn hover_lines(state: &GameState, at: parcels_sim::Pos) -> Option<Vec<String>> {
     let idx = state.map.idx(at);
     let mut lines = Vec::new();
     match t.kind {
-        TileKind::Empty | TileKind::Road(_) => return None,
+        TileKind::Empty => return None,
+        TileKind::Road(r) => {
+            let name = if r == parcels_sim::Road::Avenue { "Avenue" } else { "Street" };
+            let load = t.traffic as u32 * 100 / state.config.traffic_at_capacity.max(1);
+            lines.push(format!("{name}{}", if t.terrain == Terrain::Water { " bridge" } else { "" }));
+            lines.push(format!("Traffic: {}", match load {
+                0 => "empty".to_string(),
+                1..=60 => format!("light ({load}% of capacity)"),
+                61..=100 => format!("busy ({load}% of capacity)"),
+                _ => format!("jammed ({load}% of capacity)"),
+            }));
+            if t.covered(Service::Transit) {
+                lines.push("Bus stop nearby".into());
+            }
+            return Some(lines);
+        }
         TileKind::Zone(z, d) => {
             let dense = if d == parcels_sim::Density::High { "Dense " } else { "" };
             lines.push(format!("{dense}{} · level {}", z.name(), t.level));
@@ -1017,6 +1035,24 @@ fn city_card(ui: &mut egui::Ui, state: &GameState) {
             ui.end_row();
         }
     });
+    ui.add_space(6.0);
+    ui.label(caps("GETTING AROUND"));
+    egui::Grid::new("city_commute").num_columns(2).spacing([16.0, 4.0]).show(ui, |ui| {
+        let pct = |v: u32| if s.commuters > 0 { v * 100 / s.commuters } else { 0 };
+        for (icon, k, v, c) in [
+            (Icon::Car, "Commute to work", format!("{} min", s.commute_minutes), if s.commute_minutes > 20 { pal::WARN } else { pal::INK }),
+            (Icon::People, "Commuters", s.commuters.to_string(), pal::INK),
+            (Icon::Bus, "By bus", format!("{} ({}%)", s.bus_riders, pct(s.bus_riders)), pal::INK),
+            (Icon::Warning, "No road to work", s.stranded.to_string(), if s.stranded > 0 { pal::BAD } else { pal::INK }),
+        ] {
+            ui.horizontal(|ui| {
+                icons::inline(ui, icon, 16.0);
+                ui.label(k);
+            });
+            ui.label(egui::RichText::new(v).strong().color(c));
+            ui.end_row();
+        }
+    });
 }
 
 fn budget_card(ui: &mut egui::Ui, state: &GameState, actions: &mut Vec<CommandKind>) {
@@ -1031,7 +1067,8 @@ fn budget_card(ui: &mut egui::Ui, state: &GameState, actions: &mut Vec<CommandKi
         let net = (s.taxes - s.upkeep) * tpm;
         for (k, v, c) in [
             ("Treasury", fmt_money(city.treasury), if city.treasury < 0 { pal::BAD } else { pal::INK }),
-            ("Taxes / month", fmt_money(s.taxes * tpm), pal::GOOD),
+            ("Taxes and fares / month", fmt_money(s.taxes * tpm), pal::GOOD),
+            ("  of which bus fares", fmt_money(s.fares * tpm), pal::INK_SOFT),
             ("Upkeep / month", fmt_money(-s.upkeep * tpm), pal::BAD),
             ("Net / month", fmt_money(net), if net >= 0 { pal::GOOD } else { pal::BAD }),
         ] {
@@ -1196,7 +1233,7 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                         ("L / P", "Power line / water pipe"),
                         ("G U J K N", "Cycle power, water, services, parks, landmarks"),
                         ("B / Esc", "Bulldoze / inspect"),
-                        ("1 – 9", "Overlays (press again to clear)"),
+                        ("1 – 9, 0", "Data views (press again to clear)"),
                         ("Space, + / −", "Pause, speed"),
                         ("F5 / F9", "Quick-save / quick-load"),
                         ("`", "Toggle the side panel"),

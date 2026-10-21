@@ -2,6 +2,7 @@
 //! fixed in `GameState::step`.
 
 pub mod apply;
+pub mod commute;
 pub mod demand;
 pub mod economy;
 pub mod growth;

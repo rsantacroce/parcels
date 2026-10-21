@@ -79,6 +79,7 @@ impl Letter {
             Ask::Service(Service::Health) => "The nearest clinic is too far away. We need one in our neighbourhood.".into(),
             Ask::Service(Service::Police) => "Break-ins are up on our street. Please send the police.".into(),
             Ask::Service(Service::Fire) => "If a fire starts here, nobody will come. We need a fire station nearby.".into(),
+            Ask::Service(Service::Transit) => "We sit in traffic every morning. A bus stop near us would change everything.".into(),
             Ask::Park => "There's nowhere green to walk. Could we have a park near us?".into(),
             Ask::TaxesAtMost(n) => format!("Taxes are squeezing every household. Bring them down to {n}% or less."),
             Ask::Supply(Utility::Power) => "Our lights keep going out. The city needs more power.".into(),
@@ -93,6 +94,7 @@ impl Letter {
     /// The goal in a few words, for the inbox list.
     pub fn goal(&self) -> String {
         match self.ask {
+            Ask::Service(Service::Transit) => "A working bus stop near their home".into(),
             Ask::Service(s) => format!("{} coverage at their home", s.name()),
             Ask::Park => "A park within 4 tiles".into(),
             Ask::TaxesAtMost(n) => format!("Taxes at {n}% or less"),

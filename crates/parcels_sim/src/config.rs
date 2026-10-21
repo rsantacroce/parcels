@@ -113,11 +113,6 @@ pub struct Config {
     // ---- Pollution / traffic / crime / fire ----
     pub industrial_pollution_per_level: u16,
     pub pollution_radius: u8,
-    pub traffic_radius: u8,
-    /// Divides nearby population+jobs into a road tile's traffic score.
-    pub traffic_divisor: u16,
-    /// Avenues carry traffic at this percentage of a street's congestion.
-    pub avenue_traffic_percent: u16,
     pub traffic_pollution_divisor: u16,
     /// Pollution saturates at this value.
     pub pollution_cap: u16,
@@ -136,6 +131,26 @@ pub struct Config {
     /// Tax per tick = sum(occupants * land_value) * tax% / this. Industry is
     /// taxed at base land value: factories don't care about the view.
     pub tax_divisor: i64,
+
+    // ---- Commuting ----
+    /// Ticks between commute updates.
+    pub commute_interval: u16,
+    /// Share of residents who travel to work each day, percent.
+    pub commute_percent: u16,
+    /// Travel cost of crossing one tile; commuters take the cheapest route.
+    pub street_travel_cost: u32,
+    pub avenue_travel_cost: u32,
+    /// Car trips a road tile carries before it counts as fully congested.
+    pub street_capacity: u32,
+    pub avenue_capacity: u32,
+    /// A road's traffic score at exactly full capacity (scales linearly).
+    pub traffic_at_capacity: u32,
+    /// Share of trips that take the bus when both ends are near a working stop.
+    pub bus_share_percent: u16,
+    /// Riders one depot can carry.
+    pub bus_depot_riders: u32,
+    /// Fare per rider per month, cents.
+    pub bus_fare: i64,
 
     // ---- Mayor ----
     /// Months between elections.
@@ -291,9 +306,6 @@ impl Default for Config {
 
             industrial_pollution_per_level: 10,
             pollution_radius: 5,
-            traffic_radius: 3,
-            traffic_divisor: 20,
-            avenue_traffic_percent: 45,
             traffic_pollution_divisor: 3,
             pollution_cap: 300,
             crime_radius: 3,
@@ -304,6 +316,17 @@ impl Default for Config {
             fire_rubble_ticks: 30,
 
             tax_divisor: 1_500,
+
+            commute_interval: 5,
+            commute_percent: 50,
+            street_travel_cost: 4,
+            avenue_travel_cost: 3,
+            street_capacity: 150,
+            avenue_capacity: 360,
+            traffic_at_capacity: 40,
+            bus_share_percent: 40,
+            bus_depot_riders: 600,
+            bus_fare: 20,
 
             election_interval_months: 48,
             reelection_percent: 50,

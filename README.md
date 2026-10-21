@@ -34,8 +34,8 @@ camera (middle-drag or Q/E to rotate, PageUp/PageDown to tilt) and back. **V** d
 walk with WASD and the mouse, Shift to run, F to fly, V/Esc to come back; build tools
 work at the crosshair. Tools: R street (again: avenue), Z/X/C/O residential,
 commercial, industrial, office (again: dense), L power line, P pipe, G/U/J/K/N cycle
-power, water, services, parks, landmarks, B bulldoze, Esc inspect. 1–9 overlays
-(land value, power, water, density, pollution, traffic, crime, services).
+power, water, services, parks, landmarks, B bulldoze, Esc inspect. 1–9 and 0 switch data views
+(land value, power, water, density, pollution, traffic, crime, services, buses).
 Space pauses, +/- speed, F5/F9 quick-save/load,
 F10 menu, H help, ` toggles the side panel.
 
@@ -43,7 +43,7 @@ F10 menu, H help, ` toggles the side panel.
 
 | Category | Items |
 | --- | --- |
-| Transport | street, avenue (half the congestion), bridges over water |
+| Transport | street, avenue (faster, carries more), bridges over water, bus stop, bus depot |
 | Zones | residential, commercial, industrial, office; low or high density |
 | Power | power line, coal, gas, wind turbine, solar farm, nuclear (1×1 to 3×3) |
 | Water | pipe, pump (bonus by the river), water tower, treatment plant |
@@ -68,11 +68,21 @@ votes, and you need 50% approval to win. Lose and you can stay on as caretaker.
 Approval also feeds back into growth: a popular mayor draws newcomers, an
 unpopular one drives them away.
 
+**Getting around.** Every few ticks the city works out its commute: residents
+travel the cheapest way along the roads to the nearest jobs that still have
+room, and each road's traffic is the number of trips that pass over it. Avenues
+are quicker and carry more, so routes favour them. Homes cut off from every job
+count as out of work. Bus stops go beside a road; a powered bus depot on the
+same road network makes them work, and trips that start and end near working
+stops partly go by bus, which takes cars off the road and earns fares. The
+Traffic view (7) colours every road by load, and the Buses view (0) shows where
+stops reach.
+
 ## Layout
 
 | Crate | What it does |
 | --- | --- |
-| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `City`, `Command`, the building catalog, terrain generation, the eight-stage tick pipeline, autoplay, replays. |
+| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `City`, `Command`, the building catalog, terrain generation, the nine-stage tick pipeline, autoplay, replays. |
 | `parcels_game` | Bevy client: 3D world built from chunked meshes (`world/`), orbit and street-level cameras, day/night, cosmetic cars and pedestrians, build tools, egui HUD and minimap, title screen, saves, settings, synthesized audio. |
 
 Balance constants live in `config/balance.ron` (money in cents, land value
@@ -110,7 +120,9 @@ tag, run the workflow by hand: `gh workflow run release.yml -f tag=v0.2.0`.
   network and serve tiles from its supply) → RCI demand (shifted by the tax rate)
   → growth (every eligible zone competes for one pool of newcomers, ranked by
   land value) → land value (parks, river, shops, utilities, minus pollution and
-  traffic, spread by distance) → economy (taxes and upkeep, clamped at a debt
+  traffic, spread by distance) → commute (residents route along the roads to
+  jobs with room for them; traffic is the trips each road carries; trips between
+  two bus stops partly ride the bus) → economy (taxes, fares and upkeep, clamped at a debt
   floor) → status (resident mood per factor; approval drifts toward the total plus
   goodwill) → mayor (letters granted or lapsed, new letters, elections).
 - **Determinism guards:** replay, snapshot and arrival-order tests, plus a test

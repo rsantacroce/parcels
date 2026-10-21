@@ -1,4 +1,4 @@
-//! Stage 6: taxes in, upkeep out, treasury clamped.
+//! Stage 7: taxes in, upkeep out, treasury clamped.
 
 use crate::map::{Road, Terrain, TileKind, Zone};
 use crate::state::GameState;
@@ -39,7 +39,8 @@ pub fn run(state: &mut GameState) {
     let floor = state.config.debt_floor;
     let divisor = state.config.tax_divisor.max(1);
     let city = &mut state.city;
-    let taxes = taxable * city.tax_rate as i64 / divisor;
+    // Bus fares count as income alongside taxes.
+    let taxes = taxable * city.tax_rate as i64 / divisor + city.stats.fares;
     city.stats.taxes = taxes;
     city.stats.upkeep = upkeep;
     city.stats.land_value_total = lv_total;

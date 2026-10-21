@@ -194,6 +194,7 @@ fn hotkeys(keys: Res<ButtonInput<KeyCode>>, egui: Res<EguiWantsInput>, mut ts: R
         KeyCode::Digit7,
         KeyCode::Digit8,
         KeyCode::Digit9,
+        KeyCode::Digit0,
     ];
     for (i, k) in overlays.into_iter().enumerate() {
         if keys.just_pressed(k) {
@@ -376,7 +377,7 @@ fn ghost_height(b: Buildable) -> f32 {
             Building::WindTurbine => 40.0,
             Building::CoalPlant | Building::NuclearPlant => 25.0,
             Building::Hospital | Building::University | Building::TownHall => 22.0,
-            Building::Park | Building::Plaza | Building::Playground | Building::SportsField => 4.0,
+            Building::Park | Building::Plaza | Building::Playground | Building::SportsField | Building::BusStop => 4.0,
             _ => 12.0,
         },
         _ => 1.0,

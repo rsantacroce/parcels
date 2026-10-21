@@ -433,6 +433,7 @@ mod tests {
         let mut config = Config::default();
         config.map_width = 32;
         config.map_height = 16;
+        config.eras = false;
         let mut s = GameState::new(&NewGame::new(1, config, "Testville"));
         for t in &mut s.map.tiles {
             t.terrain = Terrain::Land;
@@ -475,6 +476,16 @@ mod tests {
         let s = game();
         let p = make_preview(&s, Tool::Bulldoze, Pos::new(1, 1), Pos::new(2, 2)).unwrap();
         assert_eq!(p.result.unwrap_err(), "Nothing to bulldoze here");
+    }
+
+    #[test]
+    fn locked_items_preview_the_era_they_need() {
+        let mut s = game();
+        s.config.eras = true;
+        s.city.era = 1;
+        let tool = Tool::Build(Buildable::Building(Building::Stadium));
+        let p = make_preview(&s, tool, Pos::new(5, 5), Pos::new(5, 5)).unwrap();
+        assert_eq!(p.result.unwrap_err(), "unlocks in the Metropolis era");
     }
 
     #[test]

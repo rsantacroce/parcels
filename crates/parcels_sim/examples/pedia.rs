@@ -24,6 +24,7 @@ fn main() {
                 "blurb": b.blurb(),
                 "service": b.service().map(|s| s.name()),
                 "conducts": b.conducts(),
+                "era": parcels_sim::era::name(parcels_sim::Buildable::Building(b).era()),
                 "stats": config.building(b),
             })
         })

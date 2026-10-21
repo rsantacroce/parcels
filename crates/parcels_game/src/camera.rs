@@ -112,13 +112,29 @@ pub fn map_center(state: &GameState) -> Vec3 {
 
 fn frame_map(driver: Res<Driver>, mut orbit: ResMut<Orbit>) {
     let Some(state) = driver.state() else { return };
-    let (focus, span) = (map_center(state), state.map.width.max(state.map.height) as f32 * TILE);
+    let span = state.map.width.max(state.map.height) as f32 * TILE;
+    let focus = built_centre(state).unwrap_or_else(|| map_center(state));
     // Start fairly close in, like stepping into the town centre.
     let dist = (span * 0.7).clamp(120.0, 2500.0);
     *orbit = Orbit { focus, yaw: FRAC_PI_4, pitch: 0.9, dist, iso: orbit.iso, iso_yaw: FRAC_PI_4 };
     if orbit.iso {
         orbit.pitch = ISO_PITCH;
     }
+}
+
+/// The middle of everything built so far, so a loaded city opens on itself
+/// rather than on empty fields.
+fn built_centre(state: &GameState) -> Option<Vec3> {
+    let (mut sx, mut sy, mut n) = (0u64, 0u64, 0u64);
+    for (i, t) in state.map.tiles.iter().enumerate() {
+        if t.kind != TileKind::Empty {
+            let p = state.map.pos(i);
+            sx += p.x as u64;
+            sy += p.y as u64;
+            n += 1;
+        }
+    }
+    (n > 0).then(|| Vec3::new(sx as f32 / n as f32 + 0.5, 0.0, sy as f32 / n as f32 + 0.5) * TILE)
 }
 
 fn showcase_orbit(time: Res<Time<Real>>, driver: Option<Res<Driver>>, mut orbit: ResMut<Orbit>, mut mode: Query<&mut CamMode, With<MainCamera>>) {

@@ -91,6 +91,7 @@ pub enum Icon {
     Map,
     Rail,
     Train,
+    Subway,
     Lock,
     Era,
     Bus,
@@ -119,6 +120,7 @@ impl Icon {
             Buildable::Road(Road::Street) => Icon::Road,
             Buildable::Road(Road::Avenue) => Icon::Avenue,
             Buildable::Rail => Icon::Rail,
+            Buildable::Subway => Icon::Subway,
             Buildable::PowerLine => Icon::PowerLine,
             Buildable::WaterPipe => Icon::Pipe,
             Buildable::Zone(z, _) => Icon::for_zone(z),
@@ -126,6 +128,7 @@ impl Icon {
                 Building::BusStop => Icon::BusStop,
                 Building::BusDepot => Icon::Bus,
                 Building::TrainStation => Icon::Train,
+                Building::SubwayStation => Icon::Subway,
                 Building::CoalPlant | Building::GasPlant => Icon::Plant,
                 Building::WindTurbine => Icon::Wind,
                 Building::SolarFarm => Icon::Sun,
@@ -160,6 +163,7 @@ impl Icon {
             Ask::Service(Service::Education) => Icon::School,
             Ask::Service(Service::Transit) => Icon::BusStop,
             Ask::Service(Service::Rail) => Icon::Train,
+            Ask::Service(Service::Subway) => Icon::Subway,
             Ask::Park => Icon::Parks,
             Ask::TaxesAtMost(_) => Icon::Coins,
             Ask::Supply(Utility::Power) => Icon::Power,
@@ -613,6 +617,11 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, bg: Color32) {
             }
             k.line((0.4, 0.06), (0.3, 0.94), 0.05, STEEL);
             k.line((0.6, 0.06), (0.7, 0.94), 0.05, STEEL);
+        }
+        Icon::Subway => {
+            k.circle(0.5, 0.5, 0.42, NAVY);
+            k.ring(0.5, 0.5, 0.42, 0.06, PAPER);
+            k.text(0.5, 0.53, 0.5, "M", PAPER);
         }
         Icon::Train => {
             k.rect(0.16, 0.1, 0.84, 0.76, 0.14, BRICK);

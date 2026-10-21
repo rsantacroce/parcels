@@ -60,7 +60,7 @@ fn chunk_hash(state: &GameState, look: Look, rect: Rect) -> u64 {
     for p in grow.iter() {
         let idx = state.map.idx(p);
         let t = &state.map.tiles[idx];
-        (t.terrain, t.kind, t.wire, t.pipe, t.rail, t.level, t.part, t.burning > 0).hash(&mut h);
+        (t.terrain, t.kind, t.wire, t.pipe, t.rail, t.subway, t.level, t.part, t.burning > 0).hash(&mut h);
         if t.kind.building().is_some() {
             t.powered.hash(&mut h);
         }
@@ -110,7 +110,7 @@ pub fn sync_chunks(
             }
         }
     }
-    let look = Look { overlay: view.overlay, show_pipes: view.show_pipes };
+    let look = Look { overlay: view.overlay, show_pipes: view.show_pipes, show_subway: view.show_subway };
     if chunks.tick != Some(state.tick) || chunks.look != look {
         chunks.tick = Some(state.tick);
         chunks.look = look;

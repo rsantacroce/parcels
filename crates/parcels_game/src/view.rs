@@ -43,7 +43,7 @@ impl Overlay {
             Overlay::Traffic => "Traffic",
             Overlay::Crime => "Crime",
             Overlay::Services => "Services",
-            Overlay::Transit => "Buses & trains",
+            Overlay::Transit => "Transit",
         }
     }
 
@@ -58,6 +58,8 @@ pub struct View {
     pub overlay: Overlay,
     /// Draw underground pipes (pipe and pump tools, water overlay).
     pub show_pipes: bool,
+    /// Draw subway tunnels (subway tools, transit view).
+    pub show_subway: bool,
 }
 
 pub fn mix(a: [u8; 3], b: [u8; 3], t: u32) -> [u8; 3] {
@@ -112,6 +114,8 @@ pub fn overlay_tint(state: &GameState, overlay: Overlay, idx: usize) -> Option<(
         Overlay::Transit => match t.kind {
             TileKind::Building(parcels_sim::Building::BusStop | parcels_sim::Building::BusDepot) => ([240, 180, 30], 240),
             TileKind::Building(parcels_sim::Building::TrainStation) => ([200, 70, 60], 240),
+            TileKind::Building(parcels_sim::Building::SubwayStation) => ([70, 110, 220], 240),
+            _ if t.covered(Service::Subway) => ([110, 130, 230], if t.kind.is_road() { 120 } else { 170 }),
             _ if t.covered(Service::Transit) && t.covered(Service::Rail) => ([60, 170, 200], 190),
             _ if t.covered(Service::Rail) => ([150, 110, 210], if t.kind.is_road() { 120 } else { 170 }),
             _ if t.covered(Service::Transit) => ([60, 200, 120], if t.kind.is_road() { 120 } else { 170 }),

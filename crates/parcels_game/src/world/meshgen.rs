@@ -210,6 +210,7 @@ pub struct ChunkMeshes {
 pub struct Look {
     pub overlay: Overlay,
     pub show_pipes: bool,
+    pub show_subway: bool,
 }
 
 /// Wall, glass and accent palettes per building variant.
@@ -279,6 +280,9 @@ pub fn build_chunk(state: &GameState, look: Look, area: Rect) -> ChunkMeshes {
         }
         if t.pipe && (look.show_pipes || look.overlay == Overlay::Water) {
             pipe(&mut cx, p);
+        }
+        if t.subway && look.show_subway {
+            tunnel(&mut cx, p);
         }
     }
     edge_skirt(&mut cx, area);
@@ -623,6 +627,21 @@ fn wire(cx: &mut Ctx, p: Pos) {
     }
 }
 
+/// A subway tunnel, shown as a glowing band when the subway is being worked on.
+fn tunnel(cx: &mut Ctx, p: Pos) {
+    let c = tile_center(p) + Vec3::Y * 0.45;
+    let violet = [170, 110, 240];
+    cx.m.lights.block(c - Vec3::new(1.1, 0.1, 1.1), c + Vec3::new(1.1, 0.1, 1.1), violet);
+    for (dx, dy) in [(1, 0), (0, 1)] {
+        if cx.tile_at(p.x as i32 + dx, p.y as i32 + dy).is_some_and(|n| n.subway) {
+            let d = Vec3::new(dx as f32, 0.0, dy as f32) * TILE;
+            let side = Vec3::new(dy as f32, 0.0, dx as f32) * 0.9;
+            let (a, b) = (c - side - Vec3::Y * 0.1, c + d + side + Vec3::Y * 0.1);
+            cx.m.lights.block(a.min(b), a.max(b), violet);
+        }
+    }
+}
+
 fn pipe(cx: &mut Ctx, p: Pos) {
     let c = tile_center(p) + Vec3::Y * 0.3;
     let blue = [80, 170, 250];
@@ -911,6 +930,21 @@ fn building(cx: &mut Ctx, p: Pos, b: Building, t: &Tile) {
             let (a, bb) = lot(o, face, 8.7, 0.95, 9.55, 1.3);
             cx.m.solid.block(a.with_y(3.2), bb.with_y(4.2), [230, 170, 40]);
             cx.m.lights.block(a.with_y(3.5) - Vec3::splat(0.02), bb.with_y(3.9) + Vec3::splat(0.02), [255, 230, 160]);
+        }
+        Building::SubwayStation => {
+            pad(cx, 0.4, [200, 196, 188]);
+            let glass = [120, 170, 200];
+            let frame = [44, 58, 92];
+            // A glass entrance pavilion over the stairs, and a totem with the M.
+            cx.m.solid.block(o + Vec3::new(2.5, 0.0, 2.5), o + Vec3::new(7.5, 0.4, 7.5), [150, 150, 154]);
+            cx.m.glass.block(o + Vec3::new(3.0, 0.4, 3.0), o + Vec3::new(7.0, 3.6, 7.0), glass);
+            cx.m.solid.block(o + Vec3::new(2.7, 3.6, 2.7), o + Vec3::new(7.3, 4.0, 7.3), frame);
+            for (x, z) in [(3.0f32, 3.0f32), (6.8, 3.0), (3.0, 6.8), (6.8, 6.8)] {
+                cx.m.solid.block(o + Vec3::new(x, 0.4, z), o + Vec3::new(x + 0.2, 3.6, z + 0.2), frame);
+            }
+            let totem = o + Vec3::new(8.6, 0.0, 1.4);
+            cx.m.solid.block(totem - Vec3::new(0.15, 0.0, 0.15), totem + Vec3::new(0.15, 4.4, 0.15), frame);
+            cx.m.lights.block(totem + Vec3::new(-0.7, 4.4, -0.7), totem + Vec3::new(0.7, 5.8, 0.7), [70, 110, 220]);
         }
         Building::TrainStation => {
             pad(cx, 0.3, [190, 186, 176]);
@@ -1228,7 +1262,7 @@ mod tests {
         }
         let s = &session.state;
         for overlay in Overlay::ALL {
-            let m = build_chunk(s, Look { overlay, show_pipes: true }, s.map.bounds());
+            let m = build_chunk(s, Look { overlay, show_pipes: true, show_subway: true }, s.map.bounds());
             for buf in [&m.solid, &m.glass, &m.lights, &m.water] {
                 assert_eq!(buf.pos.len(), buf.nrm.len());
                 assert_eq!(buf.pos.len(), buf.col.len());

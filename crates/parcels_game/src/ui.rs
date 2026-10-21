@@ -411,6 +411,7 @@ fn item_tooltip(state: &GameState, b: Buildable) -> String {
             parcels_sim::Road::Street => "Two-lane street. Zones within two tiles of a road can grow.".into(),
             parcels_sim::Road::Avenue => "Four lanes with a median: about half the congestion. Drag over streets to upgrade.".into(),
         },
+        Buildable::Subway => "Underground line, under anything on land. Subway stations on it carry commuters, and let the tallest towers grow.".into(),
         Buildable::Rail => "Railway track. Crosses roads at level crossings and water on bridges. Stations on the line carry commuters off the roads.".into(),
         Buildable::PowerLine => "Carries power between plants and zones. Can run over roads and water.".into(),
         Buildable::WaterPipe => "Underground water main. Zones pass water on to their neighbours.".into(),
@@ -982,7 +983,7 @@ fn hud(
 
 fn tool_hint(tool: Tool) -> &'static str {
     match tool {
-        Tool::Build(Buildable::Road(_) | Buildable::Rail | Buildable::PowerLine | Buildable::WaterPipe) => "Drag to lay a line. Right-click cancels.",
+        Tool::Build(Buildable::Road(_) | Buildable::Rail | Buildable::Subway | Buildable::PowerLine | Buildable::WaterPipe) => "Drag to lay a line. Right-click cancels.",
         Tool::Build(Buildable::Building(b)) if b.size() > 1 => "Click to place; the footprint centres on the cursor.",
         Tool::Build(Buildable::Building(_)) => "Click to place, or drag to place several.",
         _ => "Drag to paint an area. Right-click cancels.",
@@ -1173,6 +1174,7 @@ fn city_card(ui: &mut egui::Ui, state: &GameState) {
             (Icon::People, "Commuters", s.commuters.to_string(), pal::INK),
             (Icon::Bus, "By bus", format!("{} ({}%)", s.bus_riders, pct(s.bus_riders)), pal::INK),
             (Icon::Train, "By train", format!("{} ({}%)", s.train_riders, pct(s.train_riders)), pal::INK),
+            (Icon::Subway, "By subway", format!("{} ({}%)", s.subway_riders, pct(s.subway_riders)), pal::INK),
             (Icon::Warning, "No road to work", s.stranded.to_string(), if s.stranded > 0 { pal::BAD } else { pal::INK }),
         ] {
             ui.horizontal(|ui| {
@@ -1693,6 +1695,9 @@ fn inspector(ui: &mut egui::Ui, state: &GameState, pos: parcels_sim::Pos) {
             }
             if t.rail {
                 kind.push_str(" + rail");
+            }
+            if t.subway {
+                kind.push_str(" + subway below");
             }
             ui.label(kind);
             ui.end_row();

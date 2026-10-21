@@ -37,7 +37,7 @@ impl Tool {
 
     fn shape(self) -> Shape {
         match self {
-            Tool::Build(Buildable::Road(_) | Buildable::Rail | Buildable::PowerLine | Buildable::WaterPipe) => Shape::Line,
+            Tool::Build(Buildable::Road(_) | Buildable::Rail | Buildable::Subway | Buildable::PowerLine | Buildable::WaterPipe) => Shape::Line,
             Tool::Build(Buildable::Building(b)) if b.size() > 1 => Shape::Single,
             Tool::Build(Buildable::Building(b)) if !matches!(b.category(), Category::Parks) && b != Building::WindTurbine => {
                 Shape::Single
@@ -54,7 +54,7 @@ pub fn hotkey(tool: Tool) -> Option<&'static str> {
         Tool::Inspect => "Esc",
         Tool::Bulldoze => "B",
         Tool::Build(Buildable::Road(_)) => "R",
-        Tool::Build(Buildable::Rail) => return None,
+        Tool::Build(Buildable::Rail | Buildable::Subway) => return None,
         Tool::Build(Buildable::Zone(Zone::Residential, _)) => "Z",
         Tool::Build(Buildable::Zone(Zone::Commercial, _)) => "X",
         Tool::Build(Buildable::Zone(Zone::Industrial, _)) => "C",
@@ -203,6 +203,8 @@ fn hotkeys(keys: Res<ButtonInput<KeyCode>>, egui: Res<EguiWantsInput>, mut ts: R
             view.overlay = if view.overlay == o { Overlay::None } else { o };
         }
     }
+    view.show_subway = matches!(ts.tool, Tool::Build(Buildable::Subway | Buildable::Building(parcels_sim::Building::SubwayStation)))
+        || view.overlay == Overlay::Transit;
     view.show_pipes = matches!(ts.tool, Tool::Build(Buildable::WaterPipe))
         || matches!(ts.tool, Tool::Build(b) if b.category() == Category::Water);
 }

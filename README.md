@@ -43,7 +43,7 @@ F10 menu, H help, ` toggles the side panel.
 
 | Category | Items |
 | --- | --- |
-| Transport | street, avenue (faster, carries more), bridges over water, rail track (level crossings, rail bridges), bus stop, bus depot, train station |
+| Transport | street, avenue (faster, carries more), bridges over water, rail track (level crossings, rail bridges), subway line, bus stop, bus depot, train station, subway station |
 | Zones | residential, commercial, industrial, office; low or high density |
 | Power | power line, coal, gas, wind turbine, solar farm, nuclear (1×1 to 3×3) |
 | Water | pipe, pump (bonus by the river), water tower, treatment plant |
@@ -96,9 +96,12 @@ stops partly go by bus, which takes cars off the road and earns fares. Rail trac
 station must touch the track and a road, and works once its line has another
 station or runs off the map to a neighbouring city. Homes near a working
 station send half their commuters by train, to jobs near another station or to
-the neighbour down the line, before anyone takes the road. The Traffic view (7)
-colours every road by load, and the Buses & trains view (0) shows where stops
-and stations reach.
+the neighbour down the line, before anyone takes the road. The subway runs underground beneath anything on land; its stations sit on the
+line and carry 60% of nearby commuters to jobs near another station, ahead of
+trains and cars. The very top level of a tower needs a subway station nearby.
+The Traffic view (7)
+colours every road by load, and the Transit view (0) shows where stops and
+stations reach, and the tunnels.
 
 ## Layout
 

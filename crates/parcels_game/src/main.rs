@@ -6,13 +6,16 @@
 //!   parcels --verify-replay saves/replay.ron  (headless determinism check)
 //!   common: --name Rob --seed 42
 //!   dev:    --shot out.png [--street] [--hour 21] [--wait 4] [--screen new|load|settings]
-//!           [--hud city,budget,zones,views,paused]
+//!           [--hud city,budget,inbox,mayor,region,zones,views,traffic,buses,paused]
+//!           [--region slug [--plot x,y]]  open a region map, or a city in it
 
 mod audio;
 mod camera;
 mod driver;
 mod icons;
 mod menu;
+mod region;
+mod region_ui;
 mod saves;
 mod settings;
 mod tools;
@@ -31,6 +34,8 @@ use settings::Settings;
 pub enum AppState {
     #[default]
     Menu,
+    /// The region map, between cities.
+    Region,
     Playing,
 }
 
@@ -77,7 +82,8 @@ fn dev_shot(
     if let Some(h) = shot.hour {
         sky.hour = h;
     }
-    if driver.as_ref().and_then(|d| d.state()).is_none() {
+    let on_region = *state.get() == AppState::Region;
+    if driver.as_ref().and_then(|d| d.state()).is_none() && !on_region {
         return;
     }
     shot.timer += time.delta_secs();
@@ -87,7 +93,7 @@ fn dev_shot(
             shot.stage = 1;
         }
         0 if !shot.street => shot.stage = 1,
-        1 if shot.timer > shot.wait && chunks.progress() >= 1.0 => {
+        1 if shot.timer > shot.wait && (on_region || chunks.progress() >= 1.0) => {
             commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot.path.clone()));
             shot.stage = 2;
             shot.timer = 0.0;
@@ -132,7 +138,13 @@ fn main() {
             _ => menu::Screen::Title,
         };
     }
-    if args.iter().any(|a| a == "--new") {
+    if let Some(slug) = arg(&args, "--region") {
+        let plot = arg(&args, "--plot").and_then(|v| {
+            let (x, y) = v.split_once(',')?;
+            Some((x.parse().ok()?, y.parse().ok()?))
+        });
+        menu.auto = Some(AutoStart::Region(slug, plot));
+    } else if args.iter().any(|a| a == "--new") {
         menu.auto = Some(AutoStart::New);
     } else if let Some(p) = arg(&args, "--load") {
         menu.auto = Some(AutoStart::Load(p));
@@ -156,6 +168,7 @@ fn main() {
         tools::ToolsPlugin,
         ui::UiPlugin,
         menu::MenuPlugin,
+        region_ui::RegionPlugin,
         audio::AudioPlugin,
     ));
     app.init_resource::<view::View>();

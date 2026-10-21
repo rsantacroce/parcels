@@ -17,6 +17,8 @@ pub struct Driver {
     pub showcase: bool,
     /// Name this game was last saved or loaded under.
     pub save_name: Option<String>,
+    /// The region plot this city lives on, if it's part of a region.
+    pub region: Option<crate::region::Slot>,
 }
 
 /// Feedback from ticks applied this frame, for messages and sound.
@@ -27,7 +29,7 @@ pub struct TickFeed {
 
 impl Driver {
     pub fn new(state: GameState) -> Self {
-        Self { session: Session::new(state), generation: 0, paused: false, speed: 4, showcase: false, save_name: None }
+        Self { session: Session::new(state), generation: 0, paused: false, speed: 4, showcase: false, save_name: None, region: None }
     }
 
     /// A small autoplay city, already a few years old, to look at behind the menu.

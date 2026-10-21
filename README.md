@@ -68,6 +68,16 @@ votes, and you need 50% approval to win. Lose and you can stay on as caretaker.
 Approval also feeds back into growth: a popular mayor draws newcomers, an
 unpopular one drives them away.
 
+**Regions.** From the title screen, *Regions* creates a grid of plots (2×2 to
+4×4), each its own city map. Found a city on any plot and play it; the others
+stay as you left them. Neighbours connect where something crosses the map edge
+facing them: a road lets residents commute to the neighbour's open jobs (and its
+job seekers drive in) and adds demand for homes, shops and factories; a power
+line or water pipe buys the neighbour's spare supply when you're short, or
+sells yours when it is. Signs at the map edges name the cities beyond, and the
+Region card shows what crosses each border. Each city sees its neighbours as
+they were when last played, so the simulation stays deterministic.
+
 **Eras.** A new city starts as a **Town** with streets, small zones, coal and
 wind, buses and the basic services. The **City** era (1,500 residents, or year 4)
 adds avenues, offices, gas and solar power, water treatment, the town hall,

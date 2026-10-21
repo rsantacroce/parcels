@@ -10,6 +10,8 @@ use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use parcels_sim::{fmt_money, Config, GameState, Map, NewGame, TerrainSettings};
 
 use crate::driver::Driver;
+use crate::region::Region;
+use crate::region_ui::{open_plot, RegionView};
 use crate::icons::{self, pal, Icon};
 use crate::saves;
 use crate::settings::{Crowds, DayCycle, Settings};
@@ -21,6 +23,7 @@ use crate::AppState;
 pub enum Screen {
     Title,
     NewGame,
+    Regions,
     Load,
     Settings,
 }
@@ -118,6 +121,8 @@ impl GameSetup {
 pub enum AutoStart {
     New,
     Load(String),
+    /// Open a region map, or with a plot, straight into that city.
+    Region(String, Option<(u8, u8)>),
 }
 
 #[derive(Resource)]
@@ -130,6 +135,9 @@ pub struct MenuState {
     confirm_delete: Option<String>,
     preview: Option<(u64, egui::TextureHandle)>,
     showcase: Option<Mutex<Receiver<Driver>>>,
+    region_name: String,
+    region_grid: u8,
+    region_size: MapSize,
 }
 
 impl Default for MenuState {
@@ -142,6 +150,9 @@ impl Default for MenuState {
             confirm_delete: None,
             preview: None,
             showcase: None,
+            region_name: "Green Valley".into(),
+            region_grid: 3,
+            region_size: MapSize::Small,
         }
     }
 }
@@ -284,6 +295,15 @@ fn auto_start(mut commands: Commands, mut m: ResMut<MenuState>, mut next: ResMut
     let result = match auto {
         AutoStart::New => Ok(start_new(&m)),
         AutoStart::Load(p) => start_load(&p),
+        AutoStart::Region(slug, plot) => match (RegionView::open(&slug), plot) {
+            (Ok(mut view), Some((x, y))) => open_plot(&mut view.region, x, y, ""),
+            (Ok(view), None) => {
+                commands.insert_resource(view);
+                next.set(AppState::Region);
+                return;
+            }
+            (Err(e), _) => Err(e),
+        },
     };
     match result {
         Ok(d) => {
@@ -493,6 +513,9 @@ fn menu_ui(
             if big(ui, Icon::Sparkle, "New city", screen == Screen::NewGame) {
                 m.screen = Screen::NewGame;
             }
+            if big(ui, Icon::Map, "Regions", screen == Screen::Regions) {
+                m.screen = Screen::Regions;
+            }
             if big(ui, Icon::Folder, "Load city", screen == Screen::Load) {
                 m.screen = Screen::Load;
             }
@@ -559,6 +582,96 @@ fn menu_ui(
                     }
                     ui.label(egui::RichText::new(format!("Starting with {}", fmt_money(m.setup.money * 100).trim_end_matches(".00"))).color(pal::INK_SOFT));
                 });
+            });
+        }
+        Screen::Regions => {
+            card("Regions").show(&ctx, |ui| {
+                ui.label("A region is a grid of plots, each its own city map. Found cities side by side and link them with roads, power lines and pipes across the map edges.");
+                ui.add_space(6.0);
+                let regions = Region::list();
+                if !regions.is_empty() {
+                    ui.label(egui::RichText::new("YOUR REGIONS").size(11.5).strong().color(pal::INK_SOFT));
+                    for (slug, r) in &regions {
+                        egui::Frame::group(ui.style()).show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal(|ui| {
+                                icons::inline(ui, Icon::Map, 22.0);
+                                ui.vertical(|ui| {
+                                    ui.label(egui::RichText::new(&r.name).strong().size(15.0));
+                                    let cities = r.plots.iter().flatten().count();
+                                    ui.label(egui::RichText::new(format!("{}×{} plots · {cities} cities · {} residents", r.cols, r.rows, r.population())).small());
+                                });
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if icons::menu_button(ui, Icon::Play, "Open", 92.0, 32.0, false).clicked() {
+                                        match RegionView::open(slug) {
+                                            Ok(view) => {
+                                                commands.insert_resource(view);
+                                                m.screen = Screen::Title;
+                                                next.set(AppState::Region);
+                                            }
+                                            Err(e) => m.error = Some(e),
+                                        }
+                                    }
+                                });
+                            });
+                        });
+                    }
+                    ui.add_space(8.0);
+                }
+                ui.label(egui::RichText::new("NEW REGION").size(11.5).strong().color(pal::INK_SOFT));
+                egui::Grid::new("new_region").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
+                    ui.label("Name");
+                    ui.text_edit_singleline(&mut m.region_name);
+                    ui.end_row();
+                    ui.label("Plots");
+                    ui.horizontal(|ui| {
+                        for n in [2u8, 3, 4] {
+                            ui.selectable_value(&mut m.region_grid, n, format!("{n}×{n}"));
+                        }
+                    });
+                    ui.end_row();
+                    ui.label("Each city");
+                    ui.horizontal(|ui| {
+                        for size in [MapSize::Small, MapSize::Medium, MapSize::Large] {
+                            let (w, h) = size.dims().unwrap();
+                            ui.selectable_value(&mut m.region_size, size, format!("{} {w}×{h}", size.label()));
+                        }
+                    });
+                    ui.end_row();
+                    ui.label("Starting money");
+                    ui.horizontal(|ui| {
+                        for (v, l) in [(40_000, "Easy $40k"), (20_000, "Normal $20k"), (10_000, "Hard $10k")] {
+                            ui.selectable_value(&mut m.setup.money, v, l);
+                        }
+                    });
+                    ui.end_row();
+                    ui.label("Eras");
+                    ui.checkbox(&mut m.setup.eras, "Each city starts as a town");
+                    ui.end_row();
+                    ui.label("Fires");
+                    ui.checkbox(&mut m.setup.fires, "Buildings without a fire station can burn");
+                    ui.end_row();
+                });
+                ui.add_space(6.0);
+                let taken = Region::exists(&m.region_name);
+                if taken {
+                    ui.colored_label(pal::WARN, "A region with this name already exists.");
+                }
+                if icons::menu_button(ui, Icon::Map, "Create region", 200.0, 40.0, true).clicked() && !taken {
+                    let mut r = Region::new(&m.region_name, seed_from(&m.setup.seed), m.region_grid, m.region_grid, m.region_size.dims().unwrap());
+                    r.money = m.setup.money;
+                    r.eras = m.setup.eras;
+                    r.fires = m.setup.fires;
+                    r.terrain = m.setup.terrain;
+                    match r.save() {
+                        Ok(()) => {
+                            commands.insert_resource(RegionView::new(r));
+                            m.screen = Screen::Title;
+                            next.set(AppState::Region);
+                        }
+                        Err(e) => m.error = Some(e),
+                    }
+                }
             });
         }
         Screen::Load => {

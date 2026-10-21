@@ -15,6 +15,8 @@ use crate::camera::{CamMode, MainCamera, Orbit, StreetRequest};
 use crate::driver::{Driver, TickFeed};
 use crate::icons::{self, pal, Icon};
 use crate::menu::{load_list, theme};
+use crate::region::store_slot;
+use crate::region_ui::RegionView;
 use crate::saves;
 use crate::settings::Settings;
 use crate::tools::{hotkey, items, Tool, ToolState};
@@ -87,8 +89,63 @@ impl Plugin for UiPlugin {
             .init_resource::<Hud>()
             .add_systems(OnEnter(AppState::Playing), enter_playing)
             .add_systems(Update, (digest_feed, keys).run_if(in_state(AppState::Playing)))
-            .add_systems(EguiPrimaryContextPass, hud.run_if(in_state(AppState::Playing)));
+            .add_systems(EguiPrimaryContextPass, (edge_signs, hud).chain().run_if(in_state(AppState::Playing)));
     }
+}
+
+/// Signs at the map edges naming the city beyond, so it's clear where a road
+/// or line has to go to reach it.
+fn edge_signs(
+    mut contexts: EguiContexts,
+    driver: Res<Driver>,
+    camera: Single<(&Camera, &GlobalTransform, &CamMode), With<MainCamera>>,
+) -> Result {
+    let ctx = contexts.ctx_mut()?.clone();
+    let Some(state) = driver.state() else { return Ok(()) };
+    let (camera, cam_tf, mode) = *camera;
+    if driver.region.is_none() || *mode != CamMode::Overview {
+        return Ok(());
+    }
+    let (w, h) = (state.map.width as f32 * TILE, state.map.height as f32 * TILE);
+    let links = parcels_sim::region::links(state);
+    // Keep clear of the rails on both sides.
+    let screen = ctx.viewport_rect().shrink2(egui::vec2(230.0, 70.0));
+    let zoom = ctx.zoom_factor();
+    for side in parcels_sim::Side::ALL {
+        let Some(n) = &state.neighbours[side.index()] else { continue };
+        let out = 2.5 * TILE;
+        let at = match side {
+            parcels_sim::Side::North => Vec3::new(w / 2.0, 0.0, -out),
+            parcels_sim::Side::South => Vec3::new(w / 2.0, 0.0, h + out),
+            parcels_sim::Side::West => Vec3::new(-out, 0.0, h / 2.0),
+            parcels_sim::Side::East => Vec3::new(w + out, 0.0, h / 2.0),
+        };
+        let Ok(v) = camera.world_to_viewport(cam_tf, at) else { continue };
+        let pos = egui::pos2(v.x / zoom, v.y / zoom);
+        let pos = egui::pos2(pos.x.clamp(screen.left(), screen.right()), pos.y.clamp(screen.top(), screen.bottom() - DASH_H));
+        let linked = links[side.index()].any();
+        egui::Area::new(egui::Id::new(("edge_sign", side.index())))
+            .fixed_pos(pos)
+            .pivot(egui::Align2::CENTER_CENTER)
+            .interactable(false)
+            .order(egui::Order::Background)
+            .show(&ctx, |ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                egui::Frame::new()
+                    .fill(if linked { pal::ACCENT_SOFT } else { pal::PAPER })
+                    .stroke(egui::Stroke::new(2.0, pal::BORDER))
+                    .corner_radius(16)
+                    .inner_margin(egui::Margin::symmetric(10, 4))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            icons::inline(ui, Icon::Map, 16.0);
+                            ui.label(egui::RichText::new(&n.name).strong());
+                            ui.label(egui::RichText::new(format!("{} residents", n.population)).small().color(pal::INK_SOFT));
+                        });
+                    });
+            });
+    }
+    Ok(())
 }
 
 /// `--hud city|budget|inbox|mayor|zones|views|traffic|buses|paused`: open part of the HUD on start, for screenshots.
@@ -104,6 +161,7 @@ fn enter_playing(mut hud: ResMut<Hud>, dev: Option<Res<DevHud>>, mut driver: Opt
             "budget" => hud.side = Some(Side::Budget),
             "inbox" => hud.side = Some(Side::Inbox),
             "mayor" => hud.side = Some(Side::Mayor),
+            "region" => hud.side = Some(Side::Region),
             "zones" => ts.set(Tool::Build(items(Category::Zones)[0])),
             "views" => hud.flyout = Some(Flyout::DataViews),
             "traffic" => view.overlay = Overlay::Traffic,
@@ -120,6 +178,13 @@ fn enter_playing(mut hud: ResMut<Hud>, dev: Option<Res<DevHud>>, mut driver: Opt
 
 pub fn quick_save(driver: &mut Driver, toasts: &mut Toasts) {
     let Some(state) = driver.state() else { return };
+    if let Some(slot) = &driver.region {
+        match store_slot(slot, state) {
+            Ok(()) => toasts.info("Saved to the region"),
+            Err(e) => toasts.warn(format!("Save failed: {e}")),
+        }
+        return;
+    }
     match saves::save(state, "Quicksave") {
         Ok(_) => toasts.info("Quick-saved"),
         Err(e) => toasts.warn(format!("Save failed: {e}")),
@@ -257,7 +322,14 @@ fn digest_feed(
             }
         }
     }
-    if autosave && settings.autosave && !driver.showcase {
+    if autosave && settings.autosave && !driver.showcase && driver.region.is_some() {
+        if let Some(slot) = &driver.region {
+            match store_slot(slot, state) {
+                Ok(()) => toasts.info("Autosaved to the region"),
+                Err(e) => toasts.warn(format!("Autosave failed: {e}")),
+            }
+        }
+    } else if autosave && settings.autosave && !driver.showcase {
         // Write on a worker thread so a big map doesn't hitch the frame.
         let snapshot = state.clone();
         std::thread::spawn(move || {
@@ -358,6 +430,7 @@ enum Side {
     City,
     Budget,
     Mayor,
+    Region,
 }
 
 const DASH_H: f32 = 164.0;
@@ -488,6 +561,7 @@ fn hud(
     sky: Res<Sky>,
     mode: Single<&CamMode, With<MainCamera>>,
     mut street: MessageWriter<StreetRequest>,
+    mut commands: Commands,
 ) -> Result {
     let ctx = contexts.ctx_mut()?.clone();
     theme(&ctx, &settings);
@@ -565,7 +639,7 @@ fn hud(
                         })
                         .response
                         .on_hover_text("Open the City card for the full breakdown");
-                        let net = (s.taxes - s.upkeep) * tpm;
+                        let net = (s.taxes + s.trade - s.upkeep) * tpm;
                         let money = egui::RichText::new(format!(
                             "{}   {}{}/mo",
                             short_money(city.treasury),
@@ -760,9 +834,9 @@ fn hud(
                 if icons::rail_button(ui, Icon::Walk, "Street", false).on_hover_text("Walk the streets (V)").clicked() {
                     street.write(StreetRequest(ts.selected.or(ts.hover)));
                 }
-                let sound = if settings.muted { Icon::Muted } else { Icon::Sound };
-                if icons::rail_button(ui, sound, "Sound", false).on_hover_text("M").clicked() {
-                    settings.muted = !settings.muted;
+                let on = hud.side == Some(Side::Region);
+                if icons::rail_button(ui, Icon::Map, "Region", on).on_hover_text("Neighbouring cities and what crosses the border").clicked() {
+                    hud.side = if on { None } else { Some(Side::Region) };
                 }
                 if icons::rail_button(ui, Icon::Help, "Help", hud.dialog == Dialog::Help).on_hover_text("H").clicked() {
                     hud.dialog = if hud.dialog == Dialog::Help { Dialog::None } else { Dialog::Help };
@@ -796,6 +870,10 @@ fn hud(
                     }
                     Some(Side::Mayor) => {
                         card().show(ui, |ui| mayor_card(ui, &state));
+                    }
+                    Some(Side::Region) => {
+                        let in_region = driver.region.is_some();
+                        card().show(ui, |ui| region_card(ui, &state, in_region));
                     }
                     None => {}
                 }
@@ -893,7 +971,7 @@ fn hud(
         });
     }
 
-    dialogs(&ctx, &state, &mut driver, &mut hud, &mut toasts, &mut next);
+    dialogs(&ctx, &state, &mut driver, &mut hud, &mut toasts, &mut next, &mut commands, &mut settings);
 
     for kind in actions {
         driver.submit(kind);
@@ -1104,12 +1182,13 @@ fn budget_card(ui: &mut egui::Ui, state: &GameState, actions: &mut Vec<CommandKi
         ui.label(egui::RichText::new("Budget").size(18.0).strong());
     });
     egui::Grid::new("budget").num_columns(2).spacing([16.0, 4.0]).show(ui, |ui| {
-        let net = (s.taxes - s.upkeep) * tpm;
+        let net = (s.taxes + s.trade - s.upkeep) * tpm;
         for (k, v, c) in [
             ("Treasury", fmt_money(city.treasury), if city.treasury < 0 { pal::BAD } else { pal::INK }),
             ("Taxes and fares / month", fmt_money(s.taxes * tpm), pal::GOOD),
             ("  of which bus fares", fmt_money(s.fares * tpm), pal::INK_SOFT),
             ("Upkeep / month", fmt_money(-s.upkeep * tpm), pal::BAD),
+            ("Trade with neighbours / month", fmt_money(s.trade * tpm), if s.trade >= 0 { pal::INK } else { pal::BAD }),
             ("Net / month", fmt_money(net), if net >= 0 { pal::GOOD } else { pal::BAD }),
         ] {
             ui.label(k);
@@ -1148,7 +1227,17 @@ fn budget_card(ui: &mut egui::Ui, state: &GameState, actions: &mut Vec<CommandKi
     }
 }
 
-fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mut Hud, toasts: &mut Toasts, next: &mut NextState<AppState>) {
+#[allow(clippy::too_many_arguments)]
+fn dialogs(
+    ctx: &egui::Context,
+    state: &GameState,
+    driver: &mut Driver,
+    hud: &mut Hud,
+    toasts: &mut Toasts,
+    next: &mut NextState<AppState>,
+    commands: &mut Commands,
+    settings: &mut Settings,
+) {
     let center = |title: &str| egui::Window::new(title.to_string()).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO);
     match hud.dialog {
         Dialog::None => {}
@@ -1160,7 +1249,26 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                 if wide(ui, Icon::Play, "Resume") {
                     hud.dialog = Dialog::None;
                 }
-                if wide(ui, Icon::Save, "Save city…") {
+                if driver.region.is_some() {
+                    // Region cities live in their region's folder.
+                    if wide(ui, Icon::Save, "Save") {
+                        quick_save(driver, toasts);
+                        hud.dialog = Dialog::None;
+                    }
+                    if wide(ui, Icon::Map, "Back to the region") {
+                        if let Some(slot) = &driver.region {
+                            let saved = store_slot(slot, state).and_then(|_| RegionView::open(&slot.region));
+                            match saved {
+                                Ok(view) => {
+                                    commands.insert_resource(view);
+                                    hud.dialog = Dialog::None;
+                                    next.set(AppState::Region);
+                                }
+                                Err(e) => toasts.warn(format!("Couldn't save to the region: {e}")),
+                            }
+                        }
+                    }
+                } else if wide(ui, Icon::Save, "Save city…") {
                     hud.save_name = driver.save_name.clone().unwrap_or_else(|| default_save_name(state));
                     hud.dialog = Dialog::Save;
                 }
@@ -1173,8 +1281,19 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                 if wide(ui, Icon::Help, "Controls") {
                     hud.dialog = Dialog::Help;
                 }
+                let (icon, label) = if settings.muted { (Icon::Muted, "Sound: off") } else { (Icon::Sound, "Sound: on") };
+                if wide(ui, icon, label) {
+                    settings.muted = !settings.muted;
+                }
                 ui.separator();
-                if wide(ui, Icon::Quit, "Quit to title") {
+                let quit = if driver.region.is_some() { "Save and quit to title" } else { "Quit to title" };
+                if wide(ui, Icon::Quit, quit) {
+                    if let Some(slot) = &driver.region {
+                        if let Err(e) = store_slot(slot, state) {
+                            toasts.warn(format!("Couldn't save to the region: {e}"));
+                            return;
+                        }
+                    }
                     hud.dialog = Dialog::None;
                     next.set(AppState::Menu);
                 }
@@ -1409,6 +1528,63 @@ fn inbox_card(ui: &mut egui::Ui, state: &GameState) -> Option<Pos> {
         .color(pal::INK_SOFT),
     );
     show
+}
+
+fn region_card(ui: &mut egui::Ui, state: &GameState, in_region: bool) {
+    let s = &state.city.stats;
+    ui.set_width(300.0);
+    ui.horizontal(|ui| {
+        icons::inline(ui, Icon::Map, 24.0);
+        ui.label(egui::RichText::new("Region").size(18.0).strong());
+    });
+    if !in_region {
+        ui.label("This city stands alone. Start a region from the title screen to found cities side by side and link them.");
+        return;
+    }
+    let links = parcels_sim::region::links(state);
+    let mut any = false;
+    for side in parcels_sim::Side::ALL {
+        let Some(n) = &state.neighbours[side.index()] else { continue };
+        any = true;
+        let l = links[side.index()];
+        egui::Frame::new().fill(egui::Color32::WHITE.gamma_multiply(0.75)).stroke((1.0, pal::PAPER_DEEP)).corner_radius(8).inner_margin(8).show(ui, |ui| {
+            ui.set_width(284.0);
+            ui.label(egui::RichText::new(format!("{} · to the {}", n.name, side.name())).strong());
+            ui.label(egui::RichText::new(format!("{} residents · {} open jobs · {} looking for work", n.population, n.open_jobs, n.job_seekers)).small());
+            ui.horizontal(|ui| {
+                for (on, icon, what) in [(l.road, Icon::Road, "Road"), (l.power, Icon::PowerLine, "Power"), (l.water, Icon::Pipe, "Water")] {
+                    icons::inline(ui, if on { icon } else { Icon::Cross }, 16.0);
+                    ui.label(egui::RichText::new(what).small().color(if on { pal::INK } else { pal::INK_SOFT }));
+                }
+            });
+            if !l.any() {
+                ui.label(egui::RichText::new(format!("Run a road, power line or pipe to the {} edge to connect.", side.name())).small().color(pal::INK_SOFT));
+            }
+        });
+    }
+    if !any {
+        ui.label("No neighbours yet. Found cities on the plots around this one from the region map.");
+        return;
+    }
+    ui.add_space(6.0);
+    ui.label(caps("ACROSS THE BORDER"));
+    let tpm = state.config.ticks_per_month as i64;
+    egui::Grid::new("region_flows").num_columns(2).spacing([16.0, 4.0]).show(ui, |ui| {
+        for (k, v) in [
+            ("Work in a neighbour", s.commuters_out.to_string()),
+            ("Commute in from neighbours", s.commuters_in.to_string()),
+            ("Power bought / sold", format!("{} / {}", s.power.imported, s.power.exported)),
+            ("Water bought / sold", format!("{} / {}", s.water.imported, s.water.exported)),
+            ("Trade / month", fmt_money(s.trade * tpm)),
+        ] {
+            ui.label(k);
+            ui.label(egui::RichText::new(v).strong());
+            ui.end_row();
+        }
+    });
+    ui.label(
+        egui::RichText::new("Neighbours are as you last left them; their numbers update when you play them.").small().color(pal::INK_SOFT),
+    );
 }
 
 fn mayor_card(ui: &mut egui::Ui, state: &GameState) {

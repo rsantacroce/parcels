@@ -1,6 +1,5 @@
-//! Title screen, its sub-screens (new game, load, play with a friend,
-//! settings) and the multiplayer lobby. Behind the title an AI-only showcase
-//! city grows while the camera circles it.
+//! Title screen and its sub-screens (new game, load, settings). Behind the
+//! title an autoplay showcase city grows while the camera circles it.
 
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
@@ -8,14 +7,12 @@ use std::sync::Mutex;
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
-use parcels_net::{lan_ip, parse_addr, HostServer, NetClient, ServerOptions, DEFAULT_PORT};
-use parcels_sim::state::ai_name;
-use parcels_sim::{fmt_money, AiStrategy, Config, Controller, GameState, Map, NewGame, PlayerSetup, Session, TerrainSettings};
+use parcels_sim::{fmt_money, Config, GameState, Map, NewGame, TerrainSettings};
 
-use crate::driver::{Driver, Mode};
+use crate::driver::Driver;
 use crate::saves;
 use crate::settings::{Crowds, DayCycle, Settings};
-use crate::ui::{color32, Toasts};
+use crate::ui::Toasts;
 use crate::view::{map_color, Overlay};
 use crate::AppState;
 
@@ -24,7 +21,6 @@ pub enum Screen {
     Title,
     NewGame,
     Load,
-    Friends,
     Settings,
 }
 
@@ -61,25 +57,14 @@ impl MapSize {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum AiMix {
-    Mixed,
-    Barons,
-    Developers,
-}
-
-/// Everything the new-game and host screens let you choose.
+/// Everything the new-game screen lets you choose.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GameSetup {
     pub size: MapSize,
     pub width: u16,
     pub height: u16,
     pub terrain: TerrainSettings,
-    pub parcels: u8,
-    pub humans: u8,
-    pub ai: AiMix,
-    /// Years; 0 = endless.
-    pub years: u8,
+    pub city_name: String,
     /// Starting money in whole dollars.
     pub money: i64,
     pub fires: bool,
@@ -93,10 +78,7 @@ impl Default for GameSetup {
             width: 96,
             height: 72,
             terrain: TerrainSettings::default(),
-            parcels: 4,
-            humans: 1,
-            ai: AiMix::Mixed,
-            years: 10,
+            city_name: "New Harbor".into(),
             money: 20_000,
             fires: true,
             seed: String::new(),
@@ -114,7 +96,6 @@ impl GameSetup {
         let (w, h) = self.dims();
         c.map_width = w;
         c.map_height = h;
-        c.game_length_ticks = self.years as u64 * 12 * c.ticks_per_month as u64;
         c.starting_treasury = self.money * 100;
         if !self.fires {
             c.fire_chance_per_million = 0;
@@ -122,35 +103,15 @@ impl GameSetup {
         c
     }
 
-    fn ai_strategy(&self, k: usize) -> AiStrategy {
-        match self.ai {
-            AiMix::Barons => AiStrategy::UtilityBaron,
-            AiMix::Developers => AiStrategy::Developer,
-            AiMix::Mixed if k % 2 == 0 => AiStrategy::UtilityBaron,
-            AiMix::Mixed => AiStrategy::Developer,
-        }
-    }
-
-    pub fn players(&self, name: &str) -> Vec<PlayerSetup> {
-        (0..self.parcels)
-            .map(|i| {
-                if i < self.humans {
-                    let name = if self.humans == 1 { name.to_string() } else { format!("{name} {}", i + 1) };
-                    PlayerSetup { name, controller: Controller::Human }
-                } else {
-                    let k = (i - self.humans) as usize;
-                    PlayerSetup { name: ai_name(k), controller: Controller::Ai(self.ai_strategy(k)) }
-                }
-            })
-            .collect()
+    fn new_game(&self) -> NewGame {
+        let name = if self.city_name.trim().is_empty() { "New City" } else { self.city_name.trim() };
+        NewGame { seed: seed_from(&self.seed), config: self.config(), city_name: name.to_string(), terrain: self.terrain }
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum AutoStart {
-    Solo,
-    Host,
-    Join,
+    New,
     Load(String),
 }
 
@@ -158,9 +119,6 @@ pub enum AutoStart {
 pub struct MenuState {
     pub screen: Screen,
     pub setup: GameSetup,
-    pub port: String,
-    pub address: String,
-    pub host_slots: u8,
     pub error: Option<String>,
     /// Set from the command line to skip straight into a mode.
     pub auto: Option<AutoStart>,
@@ -174,9 +132,6 @@ impl Default for MenuState {
         Self {
             screen: Screen::Title,
             setup: GameSetup::default(),
-            port: DEFAULT_PORT.to_string(),
-            address: format!("127.0.0.1:{DEFAULT_PORT}"),
-            host_slots: 4,
             error: None,
             auto: None,
             confirm_delete: None,
@@ -193,9 +148,7 @@ impl Plugin for MenuPlugin {
         app.init_resource::<MenuState>()
             .add_systems(OnEnter(AppState::Menu), leave_game)
             .add_systems(Update, (auto_start, receive_showcase).run_if(in_state(AppState::Menu)))
-            .add_systems(Update, lobby_progress.run_if(in_state(AppState::Lobby)))
-            .add_systems(EguiPrimaryContextPass, menu_ui.run_if(in_state(AppState::Menu)))
-            .add_systems(EguiPrimaryContextPass, lobby_ui.run_if(in_state(AppState::Lobby)));
+            .add_systems(EguiPrimaryContextPass, menu_ui.run_if(in_state(AppState::Menu)));
     }
 }
 
@@ -278,18 +231,10 @@ fn receive_showcase(mut commands: Commands, mut m: ResMut<MenuState>, driver: Op
     }
 }
 
-fn leave_game(mut commands: Commands, driver: Option<ResMut<Driver>>, mut m: ResMut<MenuState>) {
-    if let Some(mut d) = driver {
+fn leave_game(mut commands: Commands, driver: Option<Res<Driver>>, mut m: ResMut<MenuState>) {
+    if let Some(d) = driver {
         if d.showcase {
             return;
-        }
-        match &mut d.mode {
-            Mode::Host(h) => {
-                h.disconnect_all();
-                h.flush();
-            }
-            Mode::Client(c) => c.disconnect(),
-            Mode::Local(_) => {}
         }
         commands.remove_resource::<Driver>();
     }
@@ -298,38 +243,8 @@ fn leave_game(mut commands: Commands, driver: Option<ResMut<Driver>>, mut m: Res
     }
 }
 
-fn start_solo(m: &MenuState, name: &str) -> Driver {
-    let s = &m.setup;
-    let state = GameState::new(&NewGame { seed: seed_from(&s.seed), config: s.config(), players: s.players(name), terrain: s.terrain });
-    Driver::new(Mode::Local(Session::new(state)))
-}
-
-fn host_options(m: &MenuState, name: &str) -> Result<ServerOptions, String> {
-    let port: u16 = m.port.trim().parse().map_err(|_| "Port must be a number".to_string())?;
-    Ok(ServerOptions {
-        bind: format!("0.0.0.0:{port}").parse().unwrap(),
-        slots: m.host_slots,
-        seed: seed_from(&m.setup.seed),
-        config: m.setup.config(),
-        terrain: m.setup.terrain,
-        host_name: Some(name.to_string()),
-    })
-}
-
-fn start_host(m: &MenuState, name: &str, from_save: Option<GameState>) -> Result<Driver, String> {
-    let opts = host_options(m, name)?;
-    let port = opts.bind.port();
-    let mut host = HostServer::bind(opts).map_err(|e| format!("Can't host on port {port}: {e}"))?;
-    if let Some(state) = from_save {
-        host.load(state);
-    }
-    Ok(Driver::new(Mode::Host(Box::new(host))))
-}
-
-fn start_join(m: &MenuState, name: &str) -> Result<Driver, String> {
-    let addr = parse_addr(&m.address).map_err(|e| e.to_string())?;
-    let client = NetClient::connect(addr, name).map_err(|e| format!("Can't connect: {e}"))?;
-    Ok(Driver::new(Mode::Client(Box::new(client))))
+fn start_new(m: &MenuState) -> Driver {
+    Driver::new(GameState::new(&m.setup.new_game()))
 }
 
 fn start_load(slug_or_path: &str) -> Result<Driver, String> {
@@ -339,30 +254,22 @@ fn start_load(slug_or_path: &str) -> Result<Driver, String> {
     } else {
         saves::load(slug_or_path)?
     };
-    let mut d = Driver::new(Mode::Local(Session::new(state)));
+    let mut d = Driver::new(state);
     d.save_name = saves::list().into_iter().find(|e| e.slug == slug_or_path).map(|e| e.title());
     Ok(d)
 }
 
-fn auto_start(
-    mut commands: Commands,
-    mut m: ResMut<MenuState>,
-    settings: Res<Settings>,
-    mut next: ResMut<NextState<AppState>>,
-) {
+fn auto_start(mut commands: Commands, mut m: ResMut<MenuState>, mut next: ResMut<NextState<AppState>>) {
     let Some(auto) = m.auto.take() else { return };
-    let name = settings.name.clone();
     let result = match auto {
-        AutoStart::Solo => Ok((start_solo(&m, &name), AppState::Playing)),
-        AutoStart::Host => start_host(&m, &name, None).map(|d| (d, AppState::Lobby)),
-        AutoStart::Join => start_join(&m, &name).map(|d| (d, AppState::Lobby)),
-        AutoStart::Load(p) => start_load(&p).map(|d| (d, AppState::Playing)),
+        AutoStart::New => Ok(start_new(&m)),
+        AutoStart::Load(p) => start_load(&p),
     };
     match result {
-        Ok((d, s)) => {
+        Ok(d) => {
             commands.insert_resource(d);
             commands.insert_resource(Toasts::default());
-            next.set(s);
+            next.set(AppState::Playing);
         }
         Err(e) => m.error = Some(e),
     }
@@ -386,13 +293,14 @@ pub fn load_list(ui: &mut egui::Ui, confirm_delete: &mut Option<String>, mut on_
                             Some(meta) => {
                                 ui.label(
                                     egui::RichText::new(format!(
-                                        "Year {} month {} · {}×{} map · population {} · saved {}",
-                                        meta.year, meta.month, meta.map.0, meta.map.1, meta.population, e.age()
+                                        "{} · year {} month {} · population {} · {}",
+                                        meta.city, meta.year, meta.month, meta.population, fmt_money(meta.treasury)
                                     ))
                                     .small(),
                                 );
-                                let who: Vec<String> = meta.players.iter().map(|(n, h, _)| if *h { format!("{n} 👤") } else { n.clone() }).collect();
-                                ui.label(egui::RichText::new(who.join(", ")).small().weak());
+                                ui.label(
+                                    egui::RichText::new(format!("{}×{} map · saved {}", meta.map.0, meta.map.1, e.age())).small().weak(),
+                                );
                             }
                             None => {
                                 ui.label(egui::RichText::new(format!("saved {}", e.age())).small().weak());
@@ -431,7 +339,7 @@ fn setup_hash(s: &GameSetup) -> u64 {
 }
 
 /// A top-down thumbnail of the map these settings would generate.
-fn preview(ctx: &egui::Context, m: &mut MenuState, name: &str) -> Option<egui::TextureHandle> {
+fn preview(ctx: &egui::Context, m: &mut MenuState) -> Option<egui::TextureHandle> {
     let mut s = m.setup.clone();
     if s.seed.trim().is_empty() {
         // Show something stable until a seed is chosen.
@@ -439,20 +347,11 @@ fn preview(ctx: &egui::Context, m: &mut MenuState, name: &str) -> Option<egui::T
     }
     let key = setup_hash(&s);
     if m.preview.as_ref().is_none_or(|(k, _)| *k != key) {
-        let state = GameState::new(&NewGame { seed: seed_from(&s.seed), config: s.config(), players: s.players(name), terrain: s.terrain });
+        let state = GameState::new(&s.new_game());
         let (w, h) = (state.map.width as usize, state.map.height as usize);
         let mut rgba = Vec::with_capacity(w * h * 4);
         for i in 0..w * h {
-            let mut c = map_color(&state, Overlay::None, i);
-            // Parcel borders.
-            let p = state.map.pos(i);
-            let edge = state.parcels.iter().any(|pc| {
-                pc.rect.contains(p) && (p.x == pc.rect.min.x || p.y == pc.rect.min.y || p.x == pc.rect.max.x || p.y == pc.rect.max.y)
-            });
-            if edge {
-                let o = state.owner_at(p).map(crate::view::player_color).unwrap_or([255, 255, 255]);
-                c = crate::view::mix(c, o, 200);
-            }
+            let c = map_color(&state, Overlay::None, i);
             rgba.extend_from_slice(&[c[0], c[1], c[2], 255]);
         }
         let img = egui::ColorImage::from_rgba_unmultiplied([w, h], &rgba);
@@ -462,8 +361,8 @@ fn preview(ctx: &egui::Context, m: &mut MenuState, name: &str) -> Option<egui::T
     m.preview.as_ref().map(|(_, t)| t.clone())
 }
 
-fn setup_editor(ui: &mut egui::Ui, s: &mut GameSetup, multiplayer: bool) {
-    egui::Grid::new(("setup", multiplayer)).num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
+fn setup_editor(ui: &mut egui::Ui, s: &mut GameSetup) {
+    egui::Grid::new("setup").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
         ui.label("Map size");
         ui.horizontal(|ui| {
             for size in MapSize::ALL {
@@ -504,30 +403,6 @@ fn setup_editor(ui: &mut egui::Ui, s: &mut GameSetup, multiplayer: bool) {
             }
         });
         ui.end_row();
-        if !multiplayer {
-            ui.label("Neighbourhoods");
-            ui.add(egui::Slider::new(&mut s.parcels, 1..=8).text("parcels"));
-            ui.end_row();
-            ui.label("Human players");
-            let max_h = s.parcels;
-            s.humans = s.humans.clamp(1, max_h);
-            ui.add(egui::Slider::new(&mut s.humans, 1..=max_h).text("on this computer (hot-seat)"));
-            ui.end_row();
-        }
-        ui.label("AI neighbours");
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut s.ai, AiMix::Mixed, "Mixed");
-            ui.selectable_value(&mut s.ai, AiMix::Barons, "Utility barons");
-            ui.selectable_value(&mut s.ai, AiMix::Developers, "Developers");
-        });
-        ui.end_row();
-        ui.label("Game length");
-        ui.horizontal(|ui| {
-            for (y, l) in [(5, "5 years"), (10, "10 years"), (20, "20 years"), (0, "Endless")] {
-                ui.selectable_value(&mut s.years, y, l);
-            }
-        });
-        ui.end_row();
         ui.label("Starting money");
         ui.horizontal(|ui| {
             for (v, l) in [(40_000, "Easy $40k"), (20_000, "Normal $20k"), (10_000, "Hard $10k")] {
@@ -561,7 +436,7 @@ fn menu_ui(
 ) -> Result {
     let ctx = contexts.ctx_mut()?.clone();
     theme(&ctx, &settings);
-    let mut go: Option<Result<(Driver, AppState), String>> = None;
+    let mut go: Option<Result<Driver, String>> = None;
     // Only saves this version wrote (they have metadata) are offered to continue.
     let latest = saves::list().into_iter().find(|e| e.meta.is_some());
 
@@ -570,14 +445,14 @@ fn menu_ui(
         egui::Frame::new().fill(egui::Color32::from_rgba_unmultiplied(14, 18, 26, 215)).corner_radius(14).inner_margin(26).show(ui, |ui| {
             ui.set_width(270.0);
             ui.label(egui::RichText::new("PARCELS").size(48.0).strong().color(egui::Color32::from_rgb(240, 236, 220)));
-            ui.label(egui::RichText::new("One shared map. Separate budgets.\nBuild your neighbourhood; mind the one next door.").italics().color(egui::Color32::from_gray(190)));
+            ui.label(egui::RichText::new("Lay the streets, zone the land,\nand watch your city grow.").italics().color(egui::Color32::from_gray(190)));
             ui.add_space(18.0);
             let big = |ui: &mut egui::Ui, t: &str, on: bool| {
                 ui.add_sized([270.0, 40.0], egui::Button::new(egui::RichText::new(t).size(17.0)).selected(on)).clicked()
             };
             if let Some(e) = &latest {
                 if big(ui, &format!("▶  Continue  ·  {}", e.title()), false) {
-                    go = Some(start_load(&e.slug).map(|d| (d, AppState::Playing)));
+                    go = Some(start_load(&e.slug));
                 }
             }
             let screen = m.screen;
@@ -586,9 +461,6 @@ fn menu_ui(
             }
             if big(ui, "📂  Load game", screen == Screen::Load) {
                 m.screen = Screen::Load;
-            }
-            if big(ui, "👥  Play with a friend", screen == Screen::Friends) {
-                m.screen = Screen::Friends;
             }
             if big(ui, "⚙  Settings", screen == Screen::Settings) {
                 m.screen = Screen::Settings;
@@ -617,47 +489,41 @@ fn menu_ui(
             .anchor(egui::Align2::LEFT_TOP, egui::vec2(400.0, 48.0))
             .default_width(620.0)
     };
-    let name = settings.name.clone();
     match m.screen {
         Screen::Title => {}
         Screen::NewGame => {
             card("New game").show(&ctx, |ui| {
-                ui.horizontal(|ui| {
+                egui::Grid::new("who").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
+                    ui.label("City");
+                    ui.text_edit_singleline(&mut m.setup.city_name);
+                    ui.end_row();
                     ui.label("Mayor");
                     if ui.text_edit_singleline(&mut settings.name).lost_focus() {
                         let _ = settings.save();
                     }
+                    ui.end_row();
                 });
                 ui.separator();
                 ui.horizontal_top(|ui| {
                     ui.vertical(|ui| {
-                        setup_editor(ui, &mut m.setup, false);
+                        setup_editor(ui, &mut m.setup);
                     });
-                    if let Some(tex) = preview(&ctx, &mut m, &name) {
+                    if let Some(tex) = preview(&ctx, &mut m) {
                         let s = tex.size_vec2();
                         let k = 220.0 / s.x.max(s.y);
                         ui.vertical(|ui| {
                             ui.image((tex.id(), s * k));
                             let (w, h) = m.setup.dims();
-                            ui.small(format!("{w}×{h} tiles · {} parcels", m.setup.parcels));
+                            ui.small(format!("{w}×{h} tiles"));
                         });
                     }
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
                     if ui.add_sized([180.0, 36.0], egui::Button::new(egui::RichText::new("Start building").strong().size(16.0))).clicked() {
-                        go = Some(Ok((start_solo(&m, &name), AppState::Playing)));
+                        go = Some(Ok(start_new(&m)));
                     }
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "{} you{} vs {} AI · {}",
-                            m.setup.humans,
-                            if m.setup.humans > 1 { " (hot-seat, Tab switches)" } else { "" },
-                            m.setup.parcels - m.setup.humans,
-                            fmt_money(m.setup.money * 100).trim_end_matches(".00")
-                        ))
-                        .weak(),
-                    );
+                    ui.label(egui::RichText::new(format!("Starting with {}", fmt_money(m.setup.money * 100).trim_end_matches(".00"))).weak());
                 });
             });
         }
@@ -668,74 +534,8 @@ fn menu_ui(
                 load_list(ui, &mut confirm, |slug| chosen = Some(slug.to_string()));
                 m.confirm_delete = confirm;
                 if let Some(slug) = chosen {
-                    go = Some(start_load(&slug).map(|d| (d, AppState::Playing)));
+                    go = Some(start_load(&slug));
                 }
-                ui.separator();
-                ui.small("Tip: to continue a save with friends, load it here, or host it from \"Play with a friend\".");
-            });
-        }
-        Screen::Friends => {
-            card("Play with a friend").show(&ctx, |ui| {
-                ui.columns(2, |cols| {
-                    let ui = &mut cols[0];
-                    ui.heading("Host");
-                    ui.label("Start a game others can join over your network.");
-                    egui::Grid::new("host").num_columns(2).show(ui, |ui| {
-                        ui.label("Players");
-                        let mut slots = m.host_slots;
-                        ui.add(egui::Slider::new(&mut slots, 2..=8).text("parcels"));
-                        m.host_slots = slots;
-                        ui.end_row();
-                        ui.label("Port");
-                        ui.add(egui::TextEdit::singleline(&mut m.port).desired_width(70.0));
-                        ui.end_row();
-                    });
-                    ui.collapsing("Map & rules", |ui| {
-                        setup_editor(ui, &mut m.setup, true);
-                    });
-                    if let Some(ip) = lan_ip() {
-                        ui.label(egui::RichText::new(format!("Friends will connect to {ip}:{}", m.port.trim())).weak());
-                    }
-                    if ui.add_sized([200.0, 34.0], egui::Button::new(egui::RichText::new("Host new game").strong())).clicked() {
-                        go = Some(start_host(&m, &name, None).map(|d| (d, AppState::Lobby)));
-                    }
-                    ui.add_space(4.0);
-                    ui.menu_button("Host a saved game…", |ui| {
-                        for e in saves::list().into_iter().take(12) {
-                            if ui.button(e.title()).clicked() {
-                                go = Some(saves::load(&e.slug).and_then(|s| start_host(&m, &name, Some(s))).map(|d| (d, AppState::Lobby)));
-                                ui.close();
-                            }
-                        }
-                    });
-                    ui.small("Empty seats are played by the AI; friends who join later take one over.");
-
-                    let ui = &mut cols[1];
-                    ui.heading("Join");
-                    ui.label("Ask the host for their address.");
-                    ui.horizontal(|ui| {
-                        ui.label("Address");
-                        ui.add(egui::TextEdit::singleline(&mut m.address).desired_width(170.0));
-                    });
-                    if ui.add_sized([200.0, 34.0], egui::Button::new(egui::RichText::new("Join game").strong())).clicked() {
-                        go = Some(start_join(&m, &name).map(|d| (d, AppState::Lobby)));
-                    }
-                    ui.add_space(10.0);
-                    ui.heading("Same computer");
-                    ui.label("Take turns on one keyboard: start a new game with 2+ human players and press Tab to switch.");
-                    if ui.button("Set up hot-seat").clicked() {
-                        m.setup.humans = m.setup.humans.max(2);
-                        m.setup.parcels = m.setup.parcels.max(m.setup.humans);
-                        m.screen = Screen::NewGame;
-                    }
-                });
-                ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Your name");
-                    if ui.text_edit_singleline(&mut settings.name).lost_focus() {
-                        let _ = settings.save();
-                    }
-                });
             });
         }
         Screen::Settings => {
@@ -791,94 +591,15 @@ fn menu_ui(
     }
 
     match go {
-        Some(Ok((d, s))) => {
+        Some(Ok(d)) => {
             m.error = None;
             m.screen = Screen::Title;
             commands.insert_resource(d);
             commands.insert_resource(Toasts::default());
-            next.set(s);
+            next.set(AppState::Playing);
         }
         Some(Err(e)) => m.error = Some(e),
         None => {}
     }
-    Ok(())
-}
-
-fn lobby_progress(mut driver: ResMut<Driver>, mut next: ResMut<NextState<AppState>>, mut m: ResMut<MenuState>) {
-    let ready = match &driver.mode {
-        Mode::Client(c) => {
-            if c.is_disconnected() {
-                m.error = Some(format!("Disconnected: {}", c.disconnect_reason().unwrap_or_default()));
-                next.set(AppState::Menu);
-                return;
-            }
-            c.state.is_some()
-        }
-        Mode::Host(h) => h.started(),
-        Mode::Local(_) => true,
-    };
-    if ready {
-        driver.generation += 1;
-        next.set(AppState::Playing);
-    }
-}
-
-fn lobby_ui(mut contexts: EguiContexts, mut driver: ResMut<Driver>, settings: Res<Settings>, mut next: ResMut<NextState<AppState>>) -> Result {
-    let ctx = contexts.ctx_mut()?.clone();
-    theme(&ctx, &settings);
-    egui::Window::new("Lobby").collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO).show(&ctx, |ui| {
-        ui.set_width(420.0);
-        match &mut driver.mode {
-            Mode::Host(h) => {
-                let port = h.local_addr().map(|a| a.port()).unwrap_or(DEFAULT_PORT);
-                ui.label("Tell your friends to choose Play with a friend → Join and enter:");
-                let addr = match lan_ip() {
-                    Some(ip) => format!("{ip}:{port}"),
-                    None => format!("<your IP>:{port}"),
-                };
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(&addr).monospace().size(22.0).strong());
-                    if ui.button("📋 Copy").clicked() {
-                        ui.ctx().copy_text(addr.clone());
-                    }
-                });
-                ui.small("Over the internet, forward this UDP port on your router and share your public IP.");
-                ui.separator();
-                ui.label(format!("{} parcels; empty seats are played by the AI and can be taken over later.", h.slots()));
-                for (i, e) in h.lobby().iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        crate::ui::swatch(ui, color32(parcels_sim::PlayerId(i as u8)));
-                        ui.label(format!("{}{}", e.name, if e.is_host { " (host)" } else { "" }));
-                    });
-                }
-                ui.separator();
-                if ui.add_sized([160.0, 34.0], egui::Button::new(egui::RichText::new("Start game").strong())).clicked() {
-                    h.start();
-                }
-            }
-            Mode::Client(c) => {
-                if !c.is_connected() {
-                    ui.label("Connecting…");
-                } else if c.lobby.is_empty() {
-                    ui.label("Connected. Waiting for the host…");
-                } else {
-                    ui.label(format!("Waiting for the host to start ({} parcels):", c.slots));
-                    for (i, e) in c.lobby.iter().enumerate() {
-                        ui.horizontal(|ui| {
-                            crate::ui::swatch(ui, color32(parcels_sim::PlayerId(i as u8)));
-                            ui.label(format!("{}{}", e.name, if e.is_host { " (host)" } else { "" }));
-                        });
-                    }
-                }
-                for line in c.log.iter().rev().take(3) {
-                    ui.weak(line);
-                }
-            }
-            Mode::Local(_) => {}
-        }
-        if ui.button("Cancel").clicked() {
-            next.set(AppState::Menu);
-        }
-    });
     Ok(())
 }

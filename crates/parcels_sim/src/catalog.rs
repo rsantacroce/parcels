@@ -42,7 +42,7 @@ impl Category {
 }
 
 /// City services. A powered service building covers every tile within its
-/// radius, on either side of any parcel border.
+/// radius.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Service {
     /// Cuts crime.

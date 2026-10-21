@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use parcels_sim::{Controller, GameState};
+use parcels_sim::GameState;
 use serde::{Deserialize, Serialize};
 
 pub const SAVE_DIR: &str = "saves";
@@ -20,8 +20,9 @@ pub struct SaveMeta {
     pub year: u64,
     pub month: u64,
     pub map: (u16, u16),
-    /// (name, human?, score in cents)
-    pub players: Vec<(String, bool, i64)>,
+    pub city: String,
+    /// Cents.
+    pub treasury: i64,
     pub population: u32,
 }
 
@@ -76,13 +77,9 @@ pub fn meta_of(state: &GameState, name: &str) -> SaveMeta {
         year,
         month,
         map: (state.map.width, state.map.height),
-        players: state
-            .players
-            .iter()
-            .filter(|p| p.controller != Controller::Vacant)
-            .map(|p| (p.name.clone(), p.controller == Controller::Human, p.stats.score))
-            .collect(),
-        population: state.global.population,
+        city: state.city.name.clone(),
+        treasury: state.city.treasury,
+        population: state.city.stats.population,
     }
 }
 

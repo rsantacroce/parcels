@@ -1,14 +1,11 @@
 //! In-game HUD: top bar (date, speed, money, demand), bottom build toolbar,
-//! neighbourhood panel with inspector, minimap, toasts, and the pause menu with
-//! save and load.
+//! city panel with inspector, minimap, toasts, and the pause menu with save
+//! and load.
 
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use parcels_sim::systems::growth::growth_block;
-use parcels_sim::{
-    fmt_money, AiStrategy, Buildable, Category, CommandKind, Controller, GameState, PlayerId, Service, Terrain, TileKind, Utility,
-    Zone,
-};
+use parcels_sim::{fmt_money, Buildable, Category, CommandKind, GameState, Service, Terrain, TileKind, Zone};
 
 use crate::audio::{Sfx, SfxQueue};
 use crate::camera::{CamMode, MainCamera, Orbit, StreetRequest};
@@ -17,7 +14,7 @@ use crate::menu::{load_list, theme};
 use crate::saves;
 use crate::settings::Settings;
 use crate::tools::{hotkey, items, Tool, ToolState};
-use crate::view::{map_color, player_color, Overlay, View};
+use crate::view::{map_color, Overlay, View};
 use crate::world::meshgen::TILE;
 use crate::world::scene::Sky;
 use crate::AppState;
@@ -93,10 +90,6 @@ impl Plugin for UiPlugin {
 
 pub fn quick_save(driver: &mut Driver, toasts: &mut Toasts) {
     let Some(state) = driver.state() else { return };
-    if !driver.is_authority() {
-        toasts.warn("Only the host can save");
-        return;
-    }
     match saves::save(state, "Quicksave") {
         Ok(_) => toasts.info("Quick-saved"),
         Err(e) => toasts.warn(format!("Save failed: {e}")),
@@ -104,10 +97,6 @@ pub fn quick_save(driver: &mut Driver, toasts: &mut Toasts) {
 }
 
 pub fn load_slug(driver: &mut Driver, slug: &str, toasts: &mut Toasts) -> bool {
-    if !driver.is_authority() {
-        toasts.warn("Only the host can load");
-        return false;
-    }
     match saves::load(slug) {
         Ok(state) => {
             driver.replace_state(state);
@@ -123,10 +112,7 @@ pub fn load_slug(driver: &mut Driver, slug: &str, toasts: &mut Toasts) -> bool {
 }
 
 fn export_replay(driver: &Driver, toasts: &mut Toasts) {
-    let Some(replay) = driver.replay() else {
-        toasts.warn("Replays are recorded by the host");
-        return;
-    };
+    let replay = driver.replay();
     let _ = std::fs::create_dir_all(saves::SAVE_DIR);
     let path = format!("{}/replay.ron", saves::SAVE_DIR);
     match ron::ser::to_string(replay).map_err(|e| e.to_string()).and_then(|t| std::fs::write(&path, t).map_err(|e| e.to_string())) {
@@ -147,13 +133,13 @@ fn keys(
     if egui.wants_any_keyboard_input() {
         return;
     }
-    if keys.just_pressed(KeyCode::Space) && driver.is_authority() {
+    if keys.just_pressed(KeyCode::Space) {
         driver.paused = !driver.paused;
     }
-    if keys.just_pressed(KeyCode::Equal) && driver.is_authority() {
+    if keys.just_pressed(KeyCode::Equal) {
         driver.speed = (driver.speed * 2).min(32);
     }
-    if keys.just_pressed(KeyCode::Minus) && driver.is_authority() {
+    if keys.just_pressed(KeyCode::Minus) {
         driver.speed = (driver.speed / 2).max(1);
     }
     if keys.just_pressed(KeyCode::F5) {
@@ -180,53 +166,49 @@ fn keys(
     }
 }
 
-/// Turn tick reports and network log lines into toasts, sounds and autosaves.
+/// Turn tick reports into toasts, sounds and autosaves.
 #[allow(clippy::too_many_arguments)]
 fn digest_feed(
     mut feed: ResMut<TickFeed>,
-    mut driver: ResMut<Driver>,
-    view: Res<View>,
+    driver: Res<Driver>,
     settings: Res<Settings>,
     mut toasts: ResMut<Toasts>,
     mut sfx: ResMut<SfxQueue>,
     time: Res<Time<Real>>,
+    mut last_pop: Local<Option<u32>>,
 ) {
-    for line in driver.log() {
-        sfx.push(Sfx::Join);
-        toasts.info(line);
-    }
-    let mine = driver.controllable();
     let reports = std::mem::take(&mut feed.reports);
     let Some(state) = driver.state() else { return };
     let mut autosave = false;
     for r in reports {
-        for (cmd, why) in &r.rejected {
-            if mine.contains(&cmd.author) {
-                toasts.warn(format!("{}: {why}", state.players[cmd.author.index()].name));
-                sfx.push(Sfx::Error);
-            }
+        for (_, why) in &r.rejected {
+            toasts.warn(why.to_string());
+            sfx.push(Sfx::Error);
         }
-        let my_fires: Vec<_> = r.fires.iter().filter(|&&p| state.owner_at(p).is_some_and(|o| mine.contains(&o))).collect();
-        if let Some(p) = my_fires.first() {
+        if let Some(p) = r.fires.first() {
             toasts.warn(format!("🔥 Fire at ({}, {})! A fire station nearby would have stopped it.", p.x, p.y));
             sfx.push(Sfx::Fire);
         }
         if r.month_ended {
-            if let Some(p) = view.active.and_then(|a| state.player(a)) {
-                let s = &p.stats;
-                if s.taxes + s.trade - s.upkeep > 0 {
-                    sfx.push(Sfx::Cash);
+            let s = &state.city.stats;
+            if s.taxes - s.upkeep > 0 {
+                sfx.push(Sfx::Cash);
+            }
+            // Celebrate round numbers, but not the ones a loaded save already passed.
+            let pop = s.population;
+            let before = last_pop.replace(pop).unwrap_or(pop);
+            if let Some(&m) = MILESTONES.iter().rev().find(|&&m| before < m && pop >= m) {
+                if !driver.showcase {
+                    toasts.info(format!("🎉 {} now has {m} residents!", state.city.name));
+                    sfx.push(Sfx::Milestone);
                 }
             }
             if state.tick % (state.config.ticks_per_month as u64 * 12) == 0 {
                 autosave = true;
             }
         }
-        if r.game_over {
-            sfx.push(Sfx::GameOver);
-        }
     }
-    if autosave && settings.autosave && driver.is_authority() && !driver.showcase {
+    if autosave && settings.autosave && !driver.showcase {
         // Write on a worker thread so a big map doesn't hitch the frame.
         let snapshot = state.clone();
         std::thread::spawn(move || {
@@ -245,16 +227,7 @@ fn digest_feed(
     }
 }
 
-/// A small round colour chip (font-independent).
-pub fn swatch(ui: &mut egui::Ui, c: egui::Color32) {
-    let (r, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
-    ui.painter().circle_filled(r.center(), 5.5, c);
-}
-
-pub fn color32(id: PlayerId) -> egui::Color32 {
-    let [r, g, b] = player_color(id);
-    egui::Color32::from_rgb(r, g, b)
-}
+const MILESTONES: [u32; 9] = [100, 500, 1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000];
 
 const ZONE_COLORS: [egui::Color32; 4] = [
     egui::Color32::from_rgb(120, 210, 110),
@@ -340,7 +313,7 @@ fn item_tooltip(state: &GameState, b: Buildable) -> String {
             parcels_sim::Road::Street => "Two-lane street. Zones within two tiles of a road can grow.".into(),
             parcels_sim::Road::Avenue => "Four lanes with a median: about half the congestion. Drag over streets to upgrade.".into(),
         },
-        Buildable::PowerLine => "Carries power between plants, zones and neighbours. Can run over roads and water.".into(),
+        Buildable::PowerLine => "Carries power between plants and zones. Can run over roads and water.".into(),
         Buildable::WaterPipe => "Underground water main. Zones pass water on to their neighbours.".into(),
     }
 }
@@ -366,10 +339,7 @@ fn hud(
         return Ok(());
     };
     let in_street = matches!(**mode, CamMode::Street { .. });
-    let active = view.active.filter(|a| state.player(*a).is_some());
-    let mine = driver.controllable();
-    let mut actions: Vec<(PlayerId, CommandKind)> = Vec::new();
-    let mut system_actions: Vec<CommandKind> = Vec::new();
+    let mut actions: Vec<CommandKind> = Vec::new();
 
     let mut root = egui::Ui::new(
         ctx.clone(),
@@ -388,50 +358,37 @@ fn hud(
             let hour = sky.hour as u32;
             ui.label(egui::RichText::new(format!("Y{y} · M{m:02} · D{d:02}")).monospace().strong())
                 .on_hover_text(format!("Tick {} · time of day {:02}:{:02}", state.tick, hour, ((sky.hour.fract()) * 60.0) as u32));
-            if state.config.game_length_ticks > 0 {
-                let left = state.config.game_length_ticks.saturating_sub(state.tick) / state.config.ticks_per_month as u64;
-                ui.label(egui::RichText::new(format!("{left} mo left")).weak())
-                    .on_hover_text("Highest score (treasury + land value) when time runs out wins");
+            ui.separator();
+            let label = if driver.paused { "▶" } else { "⏸" };
+            if ui.button(label).on_hover_text("Pause (Space)").clicked() {
+                driver.paused = !driver.paused;
+            }
+            for (name, s) in [("1×", 4), ("2×", 8), ("4×", 16), ("8×", 32)] {
+                if ui.selectable_label(driver.speed == s && !driver.paused, name).clicked() {
+                    driver.speed = s;
+                    driver.paused = false;
+                }
             }
             ui.separator();
-            if driver.is_authority() {
-                let label = if driver.paused { "▶" } else { "⏸" };
-                if ui.button(label).on_hover_text("Pause (Space)").clicked() {
-                    driver.paused = !driver.paused;
-                }
-                for (name, s) in [("1×", 4), ("2×", 8), ("4×", 16), ("8×", 32)] {
-                    if ui.selectable_label(driver.speed == s && !driver.paused, name).clicked() {
-                        driver.speed = s;
-                        driver.paused = false;
-                    }
-                }
-            } else {
-                ui.label(egui::RichText::new("speed: host").weak());
-            }
+            let city = &state.city;
+            let s = &city.stats;
+            let tpm = state.config.ticks_per_month as i64;
+            let net = (s.taxes - s.upkeep) * tpm;
+            ui.label(egui::RichText::new(&city.name).strong());
+            ui.label(egui::RichText::new(fmt_money(city.treasury)).monospace().strong().size(16.0));
+            let c = if net >= 0 { egui::Color32::LIGHT_GREEN } else { egui::Color32::LIGHT_RED };
+            ui.colored_label(c, format!("{}{}/mo", if net >= 0 { "+" } else { "" }, fmt_money(net)))
+                .on_hover_text(format!("Per month: taxes {}  upkeep -{}", fmt_money(s.taxes * tpm), fmt_money(s.upkeep * tpm)));
             ui.separator();
-            if let Some(p) = active.and_then(|a| state.player(a)) {
-                let s = &p.stats;
-                let net = (s.taxes + s.trade - s.upkeep) * state.config.ticks_per_month as i64;
-                swatch(ui, color32(p.id));
-                ui.label(egui::RichText::new(fmt_money(p.treasury)).monospace().strong().size(16.0));
-                let c = if net >= 0 { egui::Color32::LIGHT_GREEN } else { egui::Color32::LIGHT_RED };
-                ui.colored_label(c, format!("{}{}/mo", if net >= 0 { "+" } else { "" }, fmt_money(net))).on_hover_text(format!(
-                    "Per month: taxes {}  upkeep -{}  trade {}",
-                    fmt_money(s.taxes * 30),
-                    fmt_money(s.upkeep * 30),
-                    fmt_money(s.trade * 30)
-                ));
-                ui.separator();
-                ui.label(format!("👥 {}", s.population)).on_hover_text("Residents in your parcels");
-                for z in Zone::ALL {
-                    demand_bar(ui, z.letter(), s.demand[z.index()], ZONE_COLORS[z.index()]);
-                }
+            ui.label(format!("👥 {}", s.population)).on_hover_text("Residents");
+            for z in Zone::ALL {
+                demand_bar(ui, z.letter(), s.demand[z.index()], ZONE_COLORS[z.index()]);
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button(if settings.muted { "🔇" } else { "🔊" }).on_hover_text("Sound (M)").clicked() {
                     settings.muted = !settings.muted;
                 }
-                if ui.selectable_label(hud.panel, "📊").on_hover_text("Neighbourhood panel (`)").clicked() {
+                if ui.selectable_label(hud.panel, "📊").on_hover_text("City panel (`)").clicked() {
                     hud.panel = !hud.panel;
                 }
                 if ui.selectable_label(in_street, "🚶 Street").on_hover_text("Walk the streets (V)").clicked() {
@@ -510,11 +467,7 @@ fn hud(
     if hud.panel && !in_street {
         egui::Panel::right("info").exact_size(300.0).show(&mut root, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                if let Some(p) = active.and_then(|a| state.player(a)) {
-                    neighbourhood(ui, &state, p, &mut actions);
-                }
-                ui.add_space(6.0);
-                players(ui, &state, &driver, &mine, active, &mut view, &mut system_actions);
+                city_panel(ui, &state, &mut actions);
                 ui.add_space(6.0);
                 inspector(ui, &state, ts.selected.or(ts.hover));
             });
@@ -557,7 +510,7 @@ fn hud(
                         let n = if plan.footprints.is_empty() { plan.tiles.len() } else { plan.footprints.len() };
                         ui.label(format!("{} × {}: {}", n, ts.tool.label(), fmt_money(plan.cost)));
                         if p.clipped {
-                            ui.small("Clipped to your parcel");
+                            ui.small("Clipped to the map");
                         }
                     }
                     Err(why) => {
@@ -584,33 +537,10 @@ fn hud(
         });
     }
 
-    // ---------------- Game over ----------------
-    if let Some(out) = &state.outcome {
-        egui::Window::new("Time's up!").collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO).show(&ctx, |ui| {
-            ui.label("Final standings (treasury + land value):");
-            for (i, (pid, score)) in out.ranking.iter().enumerate() {
-                let p = &state.players[pid.index()];
-                let medal = ["🥇", "🥈", "🥉"].get(i).copied().unwrap_or("  ");
-                ui.colored_label(color32(*pid), format!("{medal} {}  {}", p.name, fmt_money(*score)));
-            }
-            ui.horizontal(|ui| {
-                if ui.button("Keep looking").on_hover_text("Walk around the finished city").clicked() {
-                    street.write(StreetRequest(None));
-                }
-                if ui.button("Back to title").clicked() {
-                    next.set(AppState::Menu);
-                }
-            });
-        });
-    }
-
     dialogs(&ctx, &state, &mut driver, &mut hud, &mut toasts, &mut next);
 
-    for (author, kind) in actions {
-        driver.submit(author, kind);
-    }
-    for kind in system_actions {
-        let _ = driver.submit_system(kind);
+    for kind in actions {
+        driver.submit(kind);
     }
     Ok(())
 }
@@ -626,17 +556,15 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                 if wide(ui, "Resume") {
                     hud.dialog = Dialog::None;
                 }
-                if driver.is_authority() {
-                    if wide(ui, "Save game…") {
-                        hud.save_name = driver.save_name.clone().unwrap_or_else(|| default_save_name(state));
-                        hud.dialog = Dialog::Save;
-                    }
-                    if wide(ui, "Load game…") {
-                        hud.dialog = Dialog::Load;
-                    }
-                    if wide(ui, "Export replay") {
-                        export_replay(driver, toasts);
-                    }
+                if wide(ui, "Save game…") {
+                    hud.save_name = driver.save_name.clone().unwrap_or_else(|| default_save_name(state));
+                    hud.dialog = Dialog::Save;
+                }
+                if wide(ui, "Load game…") {
+                    hud.dialog = Dialog::Load;
+                }
+                if wide(ui, "Export replay") {
+                    export_replay(driver, toasts);
                 }
                 if wide(ui, "Controls") {
                     hud.dialog = Dialog::Help;
@@ -645,9 +573,6 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                 if wide(ui, "Quit to title") {
                     hud.dialog = Dialog::None;
                     next.set(AppState::Menu);
-                }
-                if driver.is_networked() {
-                    ui.small("The game keeps running for everyone while this menu is open.");
                 }
             });
         }
@@ -711,9 +636,8 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                         ("L / P", "Power line / water pipe"),
                         ("G U J K N", "Cycle power, water, services, parks, landmarks"),
                         ("B / Esc", "Bulldoze / inspect"),
-                        ("1 – 0", "Overlays (press again to clear)"),
+                        ("1 – 9", "Overlays (press again to clear)"),
                         ("Space, + / −", "Pause, speed"),
-                        ("Tab", "Switch parcel owner (hot-seat)"),
                         ("F5 / F9", "Quick-save / quick-load"),
                         ("`", "Toggle the side panel"),
                         ("F10", "Menu"),
@@ -732,18 +656,15 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
 }
 
 pub fn default_save_name(state: &GameState) -> String {
-    let who = state.players.iter().find(|p| p.controller == Controller::Human).map_or("City", |p| p.name.as_str());
     let (y, m, _) = state.date();
-    format!("{who} year {y} month {m}")
+    format!("{} year {y} month {m}", state.city.name)
 }
 
-fn neighbourhood(ui: &mut egui::Ui, state: &GameState, p: &parcels_sim::Player, actions: &mut Vec<(PlayerId, CommandKind)>) {
+fn city_panel(ui: &mut egui::Ui, state: &GameState, actions: &mut Vec<CommandKind>) {
     let tpm = state.config.ticks_per_month as i64;
-    ui.horizontal(|ui| {
-        swatch(ui, color32(p.id));
-        ui.heading(&p.name);
-    });
-    let s = &p.stats;
+    let city = &state.city;
+    ui.heading(&city.name);
+    let s = &city.stats;
     egui::Grid::new("stats").num_columns(2).striped(true).show(ui, |ui| {
         for (k, v) in [
             ("Population", s.population.to_string()),
@@ -751,110 +672,27 @@ fn neighbourhood(ui: &mut egui::Ui, state: &GameState, p: &parcels_sim::Player, 
             ("Jobs: offices / public", format!("{} / {}", s.office_jobs, s.public_jobs)),
             ("Taxes / mo", fmt_money(s.taxes * tpm)),
             ("Upkeep / mo", fmt_money(-s.upkeep * tpm)),
-            ("Trade / mo", fmt_money(s.trade * tpm)),
             ("Buildings lost to fire", s.fires.to_string()),
         ] {
             ui.label(k);
             ui.label(v);
             ui.end_row();
         }
-        ui.label("Score");
-        ui.label(egui::RichText::new(fmt_money(s.score)).strong());
-        ui.end_row();
     });
-    let mut tax = p.tax_rate;
+    let mut tax = city.tax_rate;
     ui.horizontal(|ui| {
         ui.label("Tax rate");
         if ui.add(egui::Slider::new(&mut tax, 0..=state.config.max_tax_rate).suffix("%")).changed() {
-            actions.push((p.id, CommandKind::SetTaxRate { rate: tax }));
+            actions.push(CommandKind::SetTaxRate { rate: tax });
         }
     });
     egui::CollapsingHeader::new("Power & water").default_open(true).show(ui, |ui| {
-        for (u, l, price) in [(Utility::Power, &s.power, p.power_price), (Utility::Water, &s.water, p.water_price)] {
-            let name = if u == Utility::Power { "⚡ Power" } else { "💧 Water" };
+        for (name, l) in [("⚡ Power", &s.power), ("💧 Water", &s.water)] {
             ui.label(egui::RichText::new(name).strong());
-            ui.label(format!("supply {}  demand {}  own use {}", l.supply, l.demand, l.own_use));
             ui.colored_label(
                 if l.unserved > 0 { egui::Color32::LIGHT_RED } else { egui::Color32::GRAY },
-                format!("bought {}  sold {}  unserved {}", l.bought, l.sold, l.unserved),
+                format!("supply {}  demand {}  unserved {}", l.supply, l.demand, l.unserved),
             );
-            let mut selling = price.is_some();
-            let mut cents = price.unwrap_or(state.config.default_utility_price);
-            ui.horizontal(|ui| {
-                let a = ui.checkbox(&mut selling, "Sell surplus at").on_hover_text(
-                    "Neighbours on the same network who are short buy your spare capacity, cheapest seller first",
-                );
-                let b = ui.add_enabled(selling, egui::DragValue::new(&mut cents).range(0..=100).suffix("¢/unit"));
-                if a.changed() || b.changed() {
-                    actions.push((p.id, CommandKind::SetUtilityPrice { utility: u, price: selling.then_some(cents) }));
-                }
-            });
-        }
-        let trades: Vec<_> = state.trades.iter().filter(|t| t.buyer == p.id || t.seller == p.id).collect();
-        for t in trades {
-            let (dir, other) = if t.buyer == p.id { ("buying from", t.seller) } else { ("selling to", t.buyer) };
-            ui.small(format!("{} {}: {:?} ×{} @ {}¢", dir, state.players[other.index()].name, t.utility, t.units, t.price));
-        }
-    });
-}
-
-fn players(
-    ui: &mut egui::Ui,
-    state: &GameState,
-    driver: &Driver,
-    mine: &[PlayerId],
-    active: Option<PlayerId>,
-    view: &mut View,
-    system_actions: &mut Vec<CommandKind>,
-) {
-    egui::CollapsingHeader::new("Neighbours").default_open(true).show(ui, |ui| {
-        let mut ranking: Vec<_> = state.players.iter().filter(|p| p.controller != Controller::Vacant).collect();
-        ranking.sort_by(|a, b| b.stats.score.cmp(&a.stats.score));
-        egui::Grid::new("players").num_columns(3).striped(true).show(ui, |ui| {
-            for p in ranking {
-                let tag = if mine.contains(&p.id) { " (you)" } else { "" };
-                let short: String = p.name.chars().take(16).collect();
-                let name = egui::RichText::new(format!("{short}{tag}")).color(color32(p.id));
-                if ui.selectable_label(Some(p.id) == active, name).clicked() && mine.contains(&p.id) {
-                    view.active = Some(p.id);
-                }
-                ui.label(format!("👥 {}", p.stats.population));
-                ui.label(fmt_money(p.stats.score));
-                ui.end_row();
-            }
-        });
-        if !driver.is_networked() && !driver.showcase {
-            ui.collapsing("Who controls each parcel", |ui| {
-                ui.small("Hand parcels to the AI or play them yourself (hot-seat, Tab to switch).");
-                for p in &state.players {
-                    ui.horizontal(|ui| {
-                        ui.colored_label(color32(p.id), format!("Parcel {}", p.id.0 + 1));
-                        let mut c = p.controller.clone();
-                        let label = |c: &Controller| match c {
-                            Controller::Human => "Human",
-                            Controller::Ai(AiStrategy::UtilityBaron) => "AI: utility baron",
-                            Controller::Ai(AiStrategy::Developer) => "AI: developer",
-                            Controller::Vacant => "Empty",
-                        };
-                        egui::ComboBox::from_id_salt(("ctl", p.id.0)).selected_text(label(&c)).show_ui(ui, |ui| {
-                            for opt in [
-                                Controller::Human,
-                                Controller::Ai(AiStrategy::UtilityBaron),
-                                Controller::Ai(AiStrategy::Developer),
-                                Controller::Vacant,
-                            ] {
-                                let l = label(&opt);
-                                ui.selectable_value(&mut c, opt, l);
-                            }
-                        });
-                        if c != p.controller {
-                            let base = p.name.trim_end_matches(" (AI)").to_string();
-                            let name = if matches!(c, Controller::Ai(_)) { format!("{base} (AI)") } else { base };
-                            system_actions.push(CommandKind::SetController { player: p.id, controller: c, name });
-                        }
-                    });
-                }
-            });
         }
     });
 }
@@ -868,13 +706,9 @@ fn inspector(ui: &mut egui::Ui, state: &GameState, at: Option<parcels_sim::Pos>)
         let pos = if state.map.tile(pos).kind.building().is_some() { state.map.footprint_at(pos).min } else { pos };
         let t = state.map.tile(pos);
         let idx = state.map.idx(pos);
-        let owner = state.owner_at(pos).and_then(|o| state.player(o));
         egui::Grid::new("tile").num_columns(2).show(ui, |ui| {
             ui.label("Where");
-            match owner {
-                Some(o) => ui.colored_label(color32(o.id), format!("({}, {}) · parcel {} · {}", pos.x, pos.y, t.parcel.0 + 1, o.name)),
-                None => ui.label(format!("({}, {})", pos.x, pos.y)),
-            };
+            ui.label(format!("({}, {})", pos.x, pos.y));
             ui.end_row();
             ui.label("What");
             let mut kind = match (t.kind, t.terrain) {
@@ -960,12 +794,6 @@ fn minimap(ctx: &egui::Context, state: &GameState, hud: &mut Hud, view: &View, o
             let r = resp.rect;
             let to_screen = |v: Vec3| r.min + egui::vec2(v.x / TILE * scale, v.z / TILE * scale);
             let p = ui.painter();
-            // Parcel borders.
-            for pc in &state.parcels {
-                let a = r.min + egui::vec2(pc.rect.min.x as f32 * scale, pc.rect.min.y as f32 * scale);
-                let b = r.min + egui::vec2((pc.rect.max.x + 1) as f32 * scale, (pc.rect.max.y + 1) as f32 * scale);
-                p.rect_stroke(egui::Rect::from_min_max(a, b), 0.0, (1.0, color32(pc.owner)), egui::StrokeKind::Inside);
-            }
             // Where the camera is and which way it looks.
             let f = to_screen(orbit.focus);
             let eye = orbit.eye();

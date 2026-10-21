@@ -153,7 +153,7 @@ pub fn populate(
     if roads.is_empty() {
         return;
     }
-    let busy = (state.global.population as f32 / (roads.len() as f32 * 6.0)).clamp(0.05, 1.0);
+    let busy = (state.city.stats.population as f32 / (roads.len() as f32 * 6.0)).clamp(0.05, 1.0);
     let f = settings.crowds.factor();
     let want_cars = ((roads.len() as f32 * 0.5 * busy * f) as usize).min(500);
     let want_walkers = ((roads.len() as f32 * 0.35 * busy * f) as usize).min(300);

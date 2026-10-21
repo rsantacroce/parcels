@@ -39,13 +39,13 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
       - name: Build
-        run: cargo build --release --bin parcels --bin parcels-server
+        run: cargo build --release --bin parcels
       - name: Package
         shell: bash
         run: |
           dir=parcels-${TAG}-${{ matrix.name }}
           mkdir -p "$dir"
-          cp target/release/parcels${{ matrix.ext }} target/release/parcels-server${{ matrix.ext }} "$dir/"
+          cp target/release/parcels${{ matrix.ext }} "$dir/"
           cp -r config README.md "$dir/"
           # Archive names carry no version, so releases/latest/download/<name> always works.
           if [ "$RUNNER_OS" = "Windows" ]; then

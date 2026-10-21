@@ -23,10 +23,6 @@ pub struct Config {
     /// Treasury may not fall below this (debt ceiling). Upkeep clamps here.
     pub debt_floor: i64,
     pub ticks_per_month: u32,
-    /// Competitive game length in ticks; 0 = endless.
-    pub game_length_ticks: u64,
-    /// Score = treasury + total owned land value * this factor (cents per point).
-    pub score_land_value_factor: i64,
 
     // ---- Costs (cents) and upkeep (cents per tick) ----
     pub street_cost: i64,
@@ -46,8 +42,6 @@ pub struct Config {
     pub water_pipe_upkeep: i64,
     /// Overrides for building balance. Anything missing uses the built-in default.
     pub buildings: BTreeMap<Building, BuildingStats>,
-    /// Default price per utility unit per tick, cents, offered by the AI.
-    pub default_utility_price: u32,
 
     // ---- Zones ----
     pub low_density_max_level: u8,
@@ -143,7 +137,8 @@ pub struct Config {
     /// taxed at base land value: factories don't care about the view.
     pub tax_divisor: i64,
 
-    // ---- AI ----
+    // ---- Autoplay ----
+    /// Ticks between the autoplay builder's moves (title-screen city, tuning runs).
     pub ai_think_interval: u32,
 }
 
@@ -212,8 +207,6 @@ impl Default for Config {
             max_tax_rate: 20,
             debt_floor: -5_000_00,
             ticks_per_month: 30,
-            game_length_ticks: 30 * 12 * 10,
-            score_land_value_factor: 20,
 
             street_cost: 10_00,
             avenue_cost: 25_00,
@@ -229,7 +222,6 @@ impl Default for Config {
             power_line_upkeep: 1,
             water_pipe_upkeep: 1,
             buildings: BTreeMap::new(),
-            default_utility_price: 4,
 
             low_density_max_level: 3,
             high_density_max_level: 6,

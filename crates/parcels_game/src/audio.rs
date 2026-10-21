@@ -14,8 +14,7 @@ pub enum Sfx {
     Bulldoze,
     Error,
     Cash,
-    Join,
-    GameOver,
+    Milestone,
     Fire,
 }
 
@@ -108,11 +107,7 @@ fn synth(s: Sfx) -> Vec<f32> {
             tone(&mut v, 988.0, 988.0, 0.06, 0, 0.3);
             tone(&mut v, 1319.0, 1319.0, 0.12, 0, 0.3);
         }
-        Sfx::Join => {
-            tone(&mut v, 523.0, 523.0, 0.08, 0, 0.4);
-            tone(&mut v, 784.0, 784.0, 0.12, 0, 0.4);
-        }
-        Sfx::GameOver => {
+        Sfx::Milestone => {
             for f in [523.0, 659.0, 784.0, 1047.0] {
                 tone(&mut v, f, f, 0.16, 0, 0.45);
             }
@@ -127,7 +122,7 @@ fn synth(s: Sfx) -> Vec<f32> {
 }
 
 fn build_bank(mut commands: Commands, mut sources: ResMut<Assets<AudioSource>>) {
-    let all = [Sfx::Place, Sfx::Bulldoze, Sfx::Error, Sfx::Cash, Sfx::Join, Sfx::GameOver, Sfx::Fire];
+    let all = [Sfx::Place, Sfx::Bulldoze, Sfx::Error, Sfx::Cash, Sfx::Milestone, Sfx::Fire];
     let bank = all
         .into_iter()
         .map(|s| (s, sources.add(AudioSource { bytes: Arc::from(wav(&synth(s))) })))

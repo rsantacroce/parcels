@@ -7,14 +7,14 @@ use bevy::window::PrimaryWindow;
 use bevy_egui::input::EguiWantsInput;
 use parcels_sim::systems::apply::{plan_bulldoze, plan_place, Plan};
 use parcels_sim::{
-    Area, Building, Buildable, Category, CommandKind, Density, GameState, ParcelId, PlayerId, Pos, Rect, Rejection, Road, Zone,
+    Area, Building, Buildable, Category, CommandKind, Density, GameState, Pos, Rect, Rejection, Road, Zone,
 };
 
 use crate::audio::{Sfx, SfxQueue};
 use crate::camera::{CamMode, MainCamera, RightDrag};
 use crate::driver::Driver;
 use crate::ui::Toasts;
-use crate::view::{player_color, Overlay, View};
+use crate::view::{Overlay, View};
 use crate::world::meshgen::TILE;
 use crate::AppState;
 
@@ -79,8 +79,6 @@ enum Shape {
 
 pub struct Preview {
     pub tiles: Vec<Pos>,
-    pub author: Option<PlayerId>,
-    pub parcel: Option<ParcelId>,
     pub result: Result<Plan, String>,
     pub clipped: bool,
 }
@@ -139,7 +137,7 @@ fn cycle(current: Tool, c: Category) -> Tool {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn hotkeys(keys: Res<ButtonInput<KeyCode>>, egui: Res<EguiWantsInput>, mut ts: ResMut<ToolState>, mut view: ResMut<View>, driver: Res<Driver>) {
+fn hotkeys(keys: Res<ButtonInput<KeyCode>>, egui: Res<EguiWantsInput>, mut ts: ResMut<ToolState>, mut view: ResMut<View>) {
     if egui.wants_any_keyboard_input() {
         return;
     }
@@ -196,7 +194,6 @@ fn hotkeys(keys: Res<ButtonInput<KeyCode>>, egui: Res<EguiWantsInput>, mut ts: R
         KeyCode::Digit7,
         KeyCode::Digit8,
         KeyCode::Digit9,
-        KeyCode::Digit0,
     ];
     for (i, k) in overlays.into_iter().enumerate() {
         if keys.just_pressed(k) {
@@ -206,17 +203,6 @@ fn hotkeys(keys: Res<ButtonInput<KeyCode>>, egui: Res<EguiWantsInput>, mut ts: R
     }
     view.show_pipes = matches!(ts.tool, Tool::Build(Buildable::WaterPipe))
         || matches!(ts.tool, Tool::Build(b) if b.category() == Category::Water);
-    // Hot-seat: cycle which of our players we're acting as.
-    if keys.just_pressed(KeyCode::Tab) {
-        let mine = driver.controllable();
-        if !mine.is_empty() {
-            let i = view.active.and_then(|a| mine.iter().position(|&p| p == a)).map_or(0, |i| (i + 1) % mine.len());
-            view.active = Some(mine[i]);
-        }
-    }
-    if view.active.is_none_or(|a| !driver.controllable().contains(&a)) {
-        view.active = driver.controllable().first().copied();
-    }
 }
 
 fn track_hover(
@@ -274,7 +260,7 @@ fn centred(state: &GameState, at: Pos, size: u16) -> Pos {
     Pos::new(x, y)
 }
 
-fn make_preview(state: &GameState, mine: &[PlayerId], tool: Tool, start: Pos, end: Pos) -> Option<Preview> {
+fn make_preview(state: &GameState, tool: Tool, start: Pos, end: Pos) -> Option<Preview> {
     if tool == Tool::Inspect {
         return None;
     }
@@ -286,28 +272,17 @@ fn make_preview(state: &GameState, mine: &[PlayerId], tool: Tool, start: Pos, en
         Shape::Line => line(start, end),
         Shape::Rect => Rect::from_corners(start, end).iter().collect(),
     };
-    let anchor = if matches!(tool.shape(), Shape::Single) { tiles[0] } else { start };
-    let parcel = state.map.get(anchor).map(|t| t.parcel)?;
-    let pc = state.parcel(parcel)?;
-    let owner = pc.owner;
-    if !mine.contains(&owner) {
-        let who = &state.players[owner.index()].name;
-        return Some(Preview {
-            tiles,
-            author: None,
-            parcel: Some(parcel),
-            result: Err(format!("Parcel {} belongs to {who}", parcel.0 + 1)),
-            clipped: false,
-        });
-    }
-    // Drags that wander over the fence are clipped to the parcel they started in.
+    // Drags that run off the edge are clipped to the map.
     let before = tiles.len();
-    let tiles: Vec<Pos> = tiles.into_iter().filter(|&p| pc.rect.contains(p)).collect();
+    let tiles: Vec<Pos> = tiles.into_iter().filter(|&p| state.map.in_bounds(p)).collect();
     let clipped = tiles.len() != before;
+    if tiles.is_empty() {
+        return None;
+    }
     let area = Area::Tiles(tiles.clone());
     let result = match tool {
-        Tool::Build(b) => plan_place(state, owner, parcel, &area, b),
-        Tool::Bulldoze => plan_bulldoze(state, owner, parcel, &area),
+        Tool::Build(b) => plan_place(state, &area, b),
+        Tool::Bulldoze => plan_bulldoze(state, &area),
         Tool::Inspect => unreachable!(),
     };
     let result = result.map_err(|r: Rejection| match r {
@@ -319,18 +294,17 @@ fn make_preview(state: &GameState, mine: &[PlayerId], tool: Tool, start: Pos, en
             Tool::Build(b) => format!("{} can't go here", b.name()),
             _ => r.to_string(),
         },
-        Rejection::OutsideParcel(_) if matches!(tool, Tool::Build(Buildable::Building(_))) => {
-            "Doesn't fit inside your parcel".to_string()
+        Rejection::OutsideMap(_) if matches!(tool, Tool::Build(Buildable::Building(_))) => {
+            "Doesn't fit on the map".to_string()
         }
         other => other.to_string(),
     });
-    Some(Preview { tiles, author: Some(owner), parcel: Some(parcel), result, clipped })
+    Some(Preview { tiles, result, clipped })
 }
 
 fn build_preview(driver: Res<Driver>, mut ts: ResMut<ToolState>) {
     let Some(state) = driver.state() else { return };
-    let mine = driver.controllable();
-    let preview = ts.hover.and_then(|h| make_preview(state, &mine, ts.tool, ts.drag_start.unwrap_or(h), h));
+    let preview = ts.hover.and_then(|h| make_preview(state, ts.tool, ts.drag_start.unwrap_or(h), h));
     ts.preview = preview;
 }
 
@@ -342,7 +316,6 @@ fn click(
     mode: Single<&CamMode, With<MainCamera>>,
     mut driver: ResMut<Driver>,
     mut ts: ResMut<ToolState>,
-    mut view: ResMut<View>,
     mut toasts: ResMut<Toasts>,
     mut sfx: ResMut<SfxQueue>,
 ) {
@@ -368,23 +341,21 @@ fn click(
     if buttons.just_released(MouseButton::Left) && ts.drag_start.is_some() {
         ts.drag_start = None;
         let Some(p) = ts.preview.take() else { return };
-        match (&p.result, p.author, p.parcel) {
-            (Ok(plan), Some(author), Some(parcel)) => {
+        match &p.result {
+            Ok(plan) => {
                 let tiles = if plan.footprints.is_empty() { plan.tiles.clone() } else { plan.footprints.iter().map(|f| f.min).collect() };
                 let area = Area::Tiles(tiles);
                 let kind = match ts.tool {
-                    Tool::Build(what) => CommandKind::Place { parcel, area, what },
-                    _ => CommandKind::Bulldoze { parcel, area },
+                    Tool::Build(what) => CommandKind::Place { area, what },
+                    _ => CommandKind::Bulldoze { area },
                 };
-                driver.submit(author, kind);
-                view.active = Some(author);
+                driver.submit(kind);
                 sfx.push(if ts.tool == Tool::Bulldoze { Sfx::Bulldoze } else { Sfx::Place });
             }
-            (Err(why), _, _) => {
+            Err(why) => {
                 toasts.warn(why.clone());
                 sfx.push(Sfx::Error);
             }
-            _ => {}
         }
     }
 }
@@ -412,17 +383,8 @@ fn ghost_height(b: Buildable) -> f32 {
     }
 }
 
-fn draw_gizmos(mut gizmos: Gizmos, driver: Res<Driver>, ts: Res<ToolState>, view: Res<View>) {
+fn draw_gizmos(mut gizmos: Gizmos, driver: Res<Driver>, ts: Res<ToolState>) {
     let Some(state) = driver.state() else { return };
-    // Parcel borders in each owner's colour; ours drawn doubled.
-    for pc in &state.parcels {
-        let [r, g, b] = player_color(pc.owner);
-        let color = Color::srgba_u8(r, g, b, 230);
-        outline(&mut gizmos, pc.rect, 0.3, 0.5, color);
-        if Some(pc.owner) == view.active {
-            outline(&mut gizmos, pc.rect, 1.2, 0.5, color);
-        }
-    }
     if let Some(p) = &ts.preview {
         let color = match &p.result {
             Ok(_) => Color::srgba(0.3, 1.0, 0.4, 0.95),
@@ -464,17 +426,13 @@ fn draw_gizmos(mut gizmos: Gizmos, driver: Res<Driver>, ts: Res<ToolState>, view
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parcels_sim::{Config, Controller, NewGame, PlayerSetup, Terrain, TerrainSettings};
+    use parcels_sim::{Config, NewGame, Terrain};
 
     fn game() -> GameState {
         let mut config = Config::default();
         config.map_width = 32;
         config.map_height = 16;
-        let players = vec![
-            PlayerSetup { name: "Me".into(), controller: Controller::Human },
-            PlayerSetup { name: "Them".into(), controller: Controller::Human },
-        ];
-        let mut s = GameState::new(&NewGame { seed: 1, config, players, terrain: TerrainSettings::default() });
+        let mut s = GameState::new(&NewGame::new(1, config, "Testville"));
         for t in &mut s.map.tiles {
             t.terrain = Terrain::Land;
         }
@@ -493,9 +451,9 @@ mod tests {
     }
 
     #[test]
-    fn preview_in_own_parcel_has_cost() {
+    fn preview_has_cost() {
         let s = game();
-        let p = make_preview(&s, &[PlayerId(0)], Tool::Build(Buildable::Road(Road::Street)), Pos::new(1, 1), Pos::new(4, 1)).unwrap();
+        let p = make_preview(&s, Tool::Build(Buildable::Road(Road::Street)), Pos::new(1, 1), Pos::new(4, 1)).unwrap();
         let plan = p.result.unwrap();
         assert_eq!(plan.tiles.len(), 4);
         assert_eq!(plan.cost, 4 * s.config.street_cost);
@@ -503,38 +461,30 @@ mod tests {
     }
 
     #[test]
-    fn preview_in_neighbours_parcel_explains_why() {
-        let s = game();
-        let p = make_preview(&s, &[PlayerId(0)], Tool::Build(Buildable::Road(Road::Street)), Pos::new(20, 1), Pos::new(22, 1)).unwrap();
-        let why = p.result.unwrap_err();
-        assert!(why.contains("Them"), "{why}");
-    }
-
-    #[test]
-    fn drag_over_the_fence_is_clipped() {
+    fn drag_off_the_map_is_clipped() {
         let s = game();
         let tool = Tool::Build(Buildable::Zone(Zone::Residential, Density::Low));
-        let p = make_preview(&s, &[PlayerId(0)], tool, Pos::new(13, 1), Pos::new(18, 2)).unwrap();
+        let p = make_preview(&s, tool, Pos::new(29, 1), Pos::new(40, 2)).unwrap();
         assert!(p.clipped);
-        assert!(p.result.unwrap().tiles.iter().all(|t| t.x < 16));
+        assert!(p.result.unwrap().tiles.iter().all(|t| t.x < 32));
     }
 
     #[test]
     fn bulldozing_nothing_says_so() {
         let s = game();
-        let p = make_preview(&s, &[PlayerId(0)], Tool::Bulldoze, Pos::new(1, 1), Pos::new(2, 2)).unwrap();
+        let p = make_preview(&s, Tool::Bulldoze, Pos::new(1, 1), Pos::new(2, 2)).unwrap();
         assert_eq!(p.result.unwrap_err(), "Nothing to bulldoze here");
     }
 
     #[test]
-    fn big_buildings_centre_on_the_cursor_and_explain_misfits() {
+    fn big_buildings_centre_on_the_cursor_and_stay_on_the_map() {
         let s = game();
         let tool = Tool::Build(Buildable::Building(Building::Stadium));
-        let p = make_preview(&s, &[PlayerId(0)], tool, Pos::new(5, 5), Pos::new(5, 5)).unwrap();
+        let p = make_preview(&s, tool, Pos::new(5, 5), Pos::new(5, 5)).unwrap();
         assert_eq!(p.result.unwrap().footprints[0], Rect::square(Pos::new(4, 4), 3));
-        // Straddling the border.
-        let p = make_preview(&s, &[PlayerId(0)], tool, Pos::new(15, 5), Pos::new(15, 5)).unwrap();
-        assert_eq!(p.result.unwrap_err(), "Doesn't fit inside your parcel");
+        // At the edge it slides back onto the map.
+        let p = make_preview(&s, tool, Pos::new(31, 5), Pos::new(31, 5)).unwrap();
+        assert_eq!(p.result.unwrap().footprints[0], Rect::square(Pos::new(29, 4), 3));
     }
 
     #[test]

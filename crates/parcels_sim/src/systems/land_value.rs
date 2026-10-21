@@ -1,8 +1,7 @@
 //! Stage 5: service coverage, traffic, pollution, crime and land value.
 //!
-//! Every effect spreads by physical distance and ignores parcel borders: a park
-//! lifts the neighbour's tiles too, their police patrol your side of the street,
-//! and their factory drags your values down.
+//! Every effect spreads by physical distance: a park lifts the tiles around it,
+//! and a factory drags its neighbours' values down.
 
 use crate::catalog::Service;
 use crate::map::{Density, Road, Terrain, TileKind, Zone};

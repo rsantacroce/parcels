@@ -1,8 +1,8 @@
 //! Stage 4: zones grow, decay or burn.
 //!
-//! Map-wide demand is a limited pool of new residents and jobs. Every eligible
-//! zone tile on the map competes for it, ranked by land value plus its owner's
-//! demand, so attractive neighbourhoods — on either side of a border — fill first.
+//! Demand is a limited pool of new residents and jobs. Every eligible zone tile
+//! competes for it, ranked by land value plus demand, so attractive
+//! neighbourhoods fill first.
 //!
 //! What a tile may grow into depends on what's around it: water past the first
 //! level, a school for mid-rise housing and offices, a hospital or clinic for the
@@ -70,7 +70,8 @@ pub fn run(state: &mut GameState, report: &mut TickReport) {
     for zone in Zone::ALL {
         let z = zone.index();
         let per = c.per_level(zone) as i32;
-        let raw = state.global.raw_demand[z];
+        let raw = state.city.stats.raw_demand[z];
+        let pdemand = state.city.stats.demand[z];
         let cap = c.max_growth_per_tick as i32;
         let pool = if raw > 0 { ((raw + per - 1) / per).min(cap) } else { -((-raw / per).min(cap)) };
 
@@ -83,8 +84,6 @@ pub fn run(state: &mut GameState, report: &mut TickReport) {
             if t.kind.zone() != Some(zone) {
                 continue;
             }
-            let Some(owner) = state.owner_of_idx(i) else { continue };
-            let pdemand = state.players[owner.index()].stats.demand[z];
             let jitter = rng.below(c.growth_jitter as u32 + 1) as i32;
 
             let sustained = t.powered && access[i] && (t.level <= c.water_free_levels || t.watered);
@@ -148,14 +147,11 @@ fn fires(state: &mut GameState, report: &mut TickReport) {
         }
         if rng.below(1_000_000) < chance {
             let rubble = state.config.fire_rubble_ticks;
-            let owner = state.owner_of_idx(i);
             let t = &mut state.map.tiles[i];
             t.level = 0;
             t.burning = rubble.max(1);
             report.fires.push(state.map.pos(i));
-            if let Some(o) = owner {
-                state.players[o.index()].stats.fires += 1;
-            }
+            state.city.stats.fires += 1;
         }
     }
 }

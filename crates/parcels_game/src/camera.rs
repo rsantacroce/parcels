@@ -99,17 +99,7 @@ pub fn map_center(state: &GameState) -> Vec3 {
 
 fn frame_map(driver: Res<Driver>, mut orbit: ResMut<Orbit>) {
     let Some(state) = driver.state() else { return };
-    // Start over the first parcel we control, with the neighbours in view.
-    let (focus, span) = driver
-        .controllable()
-        .first()
-        .and_then(|&p| state.parcels_of(p).next())
-        .map(|pc| {
-            let r = pc.rect;
-            let c = Vec3::new((r.min.x + r.max.x + 1) as f32, 0.0, (r.min.y + r.max.y + 1) as f32) * TILE / 2.0;
-            (c, r.width().max(r.height()) as f32 * TILE)
-        })
-        .unwrap_or((map_center(state), state.map.width.max(state.map.height) as f32 * TILE));
+    let (focus, span) = (map_center(state), state.map.width.max(state.map.height) as f32 * TILE);
     *orbit = Orbit { focus, yaw: 0.6, pitch: 0.9, dist: (span * 1.1).clamp(120.0, 2500.0) };
 }
 

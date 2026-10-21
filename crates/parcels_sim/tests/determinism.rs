@@ -2,18 +2,13 @@
 
 use parcels_sim::*;
 
-fn ai_game(seed: u64, n: usize) -> GameState {
-    let players = (0..n)
-        .map(|i| PlayerSetup {
-            name: format!("P{i}"),
-            controller: Controller::Ai(if i % 2 == 0 { AiStrategy::UtilityBaron } else { AiStrategy::Developer }),
-        })
-        .collect();
-    GameState::new(&NewGame { seed, config: Config::default(), players, terrain: TerrainSettings::default() })
+fn auto_game(seed: u64) -> GameState {
+    GameState::new(&NewGame::new(seed, Config::default(), "Testville"))
 }
 
 fn run_session(seed: u64, ticks: u64) -> (Session, Vec<u64>) {
-    let mut s = Session::new(ai_game(seed, 4));
+    let mut s = Session::new(auto_game(seed));
+    s.autoplay = true;
     let mut hashes = Vec::new();
     for _ in 0..ticks {
         s.tick();
@@ -42,7 +37,7 @@ fn different_seed_different_world() {
 #[test]
 fn replay_reproduces_live_game() {
     let (live, live_hashes) = run_session(21, 800);
-    assert!(!live.replay.commands.is_empty(), "AI issued commands");
+    assert!(!live.replay.commands.is_empty(), "autoplay issued commands");
     let mut replay_hashes = Vec::new();
     let end = live.replay.run(|st| {
         if st.tick % 50 == 0 {
@@ -63,18 +58,13 @@ fn replay_survives_serialization() {
 
 #[test]
 fn command_arrival_order_does_not_matter() {
-    let base = ai_game(5, 2);
-    let mk = |author: u8, seq: u32, x: u16| Command {
+    let base = auto_game(5);
+    let mk = |seq: u32, x: u16| Command {
         tick: 0,
-        author: PlayerId(author),
         seq,
-        kind: CommandKind::Place {
-            parcel: ParcelId(author),
-            area: Area::Tiles(vec![Pos::new(x + author as u16 * 32, 3)]),
-            what: Buildable::Road(Road::Street),
-        },
+        kind: CommandKind::Place { area: Area::Tiles(vec![Pos::new(x, 3)]), what: Buildable::Road(Road::Street) },
     };
-    let cmds = vec![mk(0, 0, 1), mk(1, 0, 2), mk(0, 1, 3), mk(1, 1, 4)];
+    let cmds = vec![mk(0, 1), mk(1, 2), mk(2, 3), mk(3, 4)];
     let mut reversed = cmds.clone();
     reversed.reverse();
     let mut a = base.clone();
@@ -85,20 +75,24 @@ fn command_arrival_order_does_not_matter() {
 }
 
 #[test]
-fn snapshot_mid_game_continues_identically() {
-    // Late join: a client receiving a snapshot at tick N and following the
-    // command stream must end where the host ends.
-    let (mut host, _) = run_session(44, 300);
-    let snapshot = host.state.to_bytes();
-    let mut joiner = GameState::from_bytes(&snapshot).unwrap();
-    assert_eq!(joiner.hash(), host.state.hash());
+fn binary_snapshot_continues_identically() {
+    let (mut live, _) = run_session(44, 300);
+    let mut copy = GameState::from_bytes(&live.state.to_bytes()).unwrap();
+    assert_eq!(copy.hash(), live.state.hash());
     for _ in 0..300 {
-        host.ai_commands();
-        let cmds = host.take_pending();
-        host.step_with(cmds.clone());
-        joiner.step(&cmds);
+        live.tick();
     }
-    assert_eq!(joiner.hash(), host.state.hash());
+    let start = live.replay.commands.partition_point(|c| c.tick < copy.tick);
+    let cmds = &live.replay.commands[start..];
+    let mut i = 0;
+    while copy.tick < live.state.tick {
+        let from = i;
+        while i < cmds.len() && cmds[i].tick == copy.tick {
+            i += 1;
+        }
+        copy.step(&cmds[from..i]);
+    }
+    assert_eq!(copy.hash(), live.state.hash());
 }
 
 #[test]

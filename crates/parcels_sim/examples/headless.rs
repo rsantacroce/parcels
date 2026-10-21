@@ -1,12 +1,12 @@
-//! Run an all-AI game with no graphics and print a yearly summary.
-//! `cargo run -p parcels_sim --example headless --release -- [seed] [players] [width height]`
+//! Let autoplay build a city with no graphics and print a yearly summary.
+//! `cargo run -p parcels_sim --example headless --release -- [seed] [years] [width height]`
 
-use parcels_sim::{fmt_money, AiStrategy, Config, Controller, GameState, NewGame, PlayerSetup, Session, TerrainSettings};
+use parcels_sim::{fmt_money, Config, GameState, NewGame, Session};
 
 fn main() {
     let mut args = std::env::args().skip(1);
     let seed: u64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(7);
-    let n: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(4);
+    let years: u64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(10);
     let mut config = std::fs::read_to_string("config/balance.ron")
         .ok()
         .and_then(|t| Config::from_ron(&t).ok())
@@ -15,58 +15,45 @@ fn main() {
         config.map_width = w;
         config.map_height = h;
     }
-    let players = (0..n)
-        .map(|i| PlayerSetup {
-            name: parcels_sim::state::ai_name(i),
-            controller: Controller::Ai(if i % 2 == 0 { AiStrategy::UtilityBaron } else { AiStrategy::Developer }),
-        })
-        .collect();
-    let mut s = Session::new(GameState::new(&NewGame { seed, config, players, terrain: TerrainSettings::default() }));
+    let mut s = Session::new(GameState::new(&NewGame::new(seed, config, "Autoville")));
+    s.autoplay = true;
     let tpy = s.state.config.ticks_per_month as u64 * 12;
-    let trace: Option<u8> = std::env::var("AI_TRACE").ok().and_then(|v| v.parse().ok());
-    while !s.state.is_over() {
+    let trace = std::env::var("AI_TRACE").is_ok();
+    while s.state.tick < years * tpy {
         let r = s.tick();
-        if let Some(who) = trace {
-            for c in r.applied.iter().filter(|c| c.author.0 == who) {
-                let p = &s.state.players[who as usize];
-                let what = match &c.kind {
-                    parcels_sim::CommandKind::Place { area, what, .. } => format!("place {} x{}", what.name(), area.tiles().len()),
+        let c = &s.state.city;
+        if trace {
+            for cmd in &r.applied {
+                let what = match &cmd.kind {
+                    parcels_sim::CommandKind::Place { area, what } => format!("place {} x{}", what.name(), area.tiles().len()),
                     k => format!("{k:?}"),
                 };
-                println!("t{:>5} {:>12} pop{:>5} pw {}/{} un{} | {what}", c.tick, fmt_money(p.treasury), p.stats.population, p.stats.power.supply, p.stats.power.demand, p.stats.power.unserved);
+                let st = &c.stats;
+                println!("t{:>5} {:>12} pop{:>5} pw {}/{} un{} | {what}", cmd.tick, fmt_money(c.treasury), st.population, st.power.supply, st.power.demand, st.power.unserved);
             }
         }
         if s.state.tick % tpy == 0 || s.state.tick == 60 {
-            println!("--- year {} (tick {}) pop {} jobs C{} I{} demand {:?}", s.state.tick / tpy, s.state.tick,
-                s.state.global.population, s.state.global.commercial_jobs, s.state.global.industrial_jobs, s.state.global.demand);
-            for p in &s.state.players {
-                let st = &p.stats;
-                println!(
-                    "  {:10} {:>12} tax{:>2}% pop{:>5} C{:>4} I{:>4} +{}/-{}/{:+} pw {}/{} b{} s{} un{} wt {}/{} b{} s{} un{} lv{} score {}",
-                    p.name, fmt_money(p.treasury), p.tax_rate, st.population, st.commercial_jobs, st.industrial_jobs,
-                    st.taxes, st.upkeep, st.trade, st.power.supply, st.power.demand, st.power.bought, st.power.sold, st.power.unserved,
-                    st.water.supply, st.water.demand, st.water.bought, st.water.sold, st.water.unserved,
-                    st.land_value_total / (s.state.parcels[0].rect.area() as u64), fmt_money(st.score)
-                );
-            }
+            let st = &c.stats;
+            println!(
+                "year {:>2} {:>12} tax{:>2}% pop{:>5} C{:>4} I{:>4} O{:>4} +{}/-{} pw {}/{} un{} wt {}/{} un{} lv{} demand {:?}",
+                s.state.tick / tpy, fmt_money(c.treasury), c.tax_rate, st.population, st.commercial_jobs, st.industrial_jobs,
+                st.office_jobs, st.taxes, st.upkeep, st.power.supply, st.power.demand, st.power.unserved,
+                st.water.supply, st.water.demand, st.water.unserved,
+                st.land_value_total / s.state.map.len() as u64, st.demand
+            );
         }
     }
     diag(&s.state);
-    // Optional: save a mid-game snapshot with player 0 handed to a human, for
-    // eyeballing the client: `--save-at <tick> <path>` via env vars.
+    // Optional: save a mid-game snapshot for eyeballing the client.
     if let (Ok(at), Ok(path)) = (std::env::var("SAVE_AT"), std::env::var("SAVE_TO")) {
         let at: u64 = at.parse().unwrap();
-        let mut st = s.replay.run_until(at);
-        st.players[0].controller = Controller::Human;
-        st.players[0].name = "You".into();
-        std::fs::write(&path, st.to_ron()).unwrap();
+        std::fs::write(&path, s.replay.run_until(at).to_ron()).unwrap();
         println!("saved tick {at} to {path}");
     }
     if let Ok(path) = std::env::var("REPLAY_TO") {
         std::fs::write(&path, ron::ser::to_string(&s.replay).unwrap()).unwrap();
     }
     println!("final hash {:016x}", s.state.hash());
-    println!("ranking {:?}", s.state.outcome.unwrap().ranking);
 }
 
 #[allow(dead_code)]

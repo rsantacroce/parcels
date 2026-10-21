@@ -1097,7 +1097,8 @@ mod tests {
 
     #[test]
     fn grown_city_builds_valid_meshes_for_every_overlay() {
-        let mut session = Session::new(GameState::new(&NewGame::solo(2, Config::default(), "x", 3)));
+        let mut session = Session::new(GameState::new(&NewGame::new(2, Config::default(), "x")));
+        session.autoplay = true;
         for _ in 0..600 {
             session.tick();
         }
@@ -1117,7 +1118,7 @@ mod tests {
 
     #[test]
     fn every_building_type_draws_something() {
-        let mut s = GameState::new(&NewGame::solo(2, Config::default(), "x", 0));
+        let mut s = GameState::new(&NewGame::new(2, Config::default(), "x"));
         let mut x = 0;
         for b in Building::ALL {
             let fp = Rect::square(Pos::new(x, 2), b.size());

@@ -1,46 +1,31 @@
-//! A local command queue around `GameState`: collect commands from any source
-//! (local input, AI, network), stamp them, step, and keep a replay log.
-//!
-//! Single-player and the network host both drive the sim through this.
+//! A local command queue around `GameState`: collect commands from the player or
+//! autoplay, stamp them, step, and keep a replay log.
 
 use crate::ai;
 use crate::command::{Command, CommandKind};
-use crate::ids::PlayerId;
-use crate::player::Controller;
 use crate::replay::Replay;
 use crate::state::{GameState, TickReport};
 
 pub struct Session {
     pub state: GameState,
     pending: Vec<Command>,
-    /// Next sequence number per author (index 255 = system).
-    next_seq: [u32; 256],
+    next_seq: u32,
     pub replay: Replay,
+    /// Let the autoplay builder run the city (title screen, tuning runs).
+    pub autoplay: bool,
 }
 
 impl Session {
     pub fn new(state: GameState) -> Self {
-        Self { replay: Replay::new(state.clone()), state, pending: Vec::new(), next_seq: [0; 256] }
+        Self { replay: Replay::new(state.clone()), state, pending: Vec::new(), next_seq: 0, autoplay: false }
     }
 
     /// Queue a command to execute on the next tick. Returns the stamped command.
-    pub fn submit(&mut self, author: PlayerId, kind: CommandKind) -> Command {
-        let seq = &mut self.next_seq[author.0 as usize];
-        let cmd = Command { tick: self.state.tick, author, seq: *seq, kind };
-        *seq += 1;
+    pub fn submit(&mut self, kind: CommandKind) -> Command {
+        let cmd = Command { tick: self.state.tick, seq: self.next_seq, kind };
+        self.next_seq += 1;
         self.pending.push(cmd.clone());
         cmd
-    }
-
-    /// Commands every AI-controlled player wants to issue this tick.
-    pub fn ai_commands(&mut self) {
-        let ais: Vec<PlayerId> =
-            self.state.players.iter().filter(|p| matches!(p.controller, Controller::Ai(_))).map(|p| p.id).collect();
-        for id in ais {
-            for kind in ai::plan(&self.state, id) {
-                self.submit(id, kind);
-            }
-        }
     }
 
     /// Commands queued for the upcoming tick.
@@ -53,15 +38,14 @@ impl Session {
         out
     }
 
-    /// Run AI, then step with everything queued.
+    /// Run autoplay if enabled, then step with everything queued.
     pub fn tick(&mut self) -> TickReport {
-        self.ai_commands();
+        if self.autoplay {
+            for kind in ai::plan(&self.state) {
+                self.submit(kind);
+            }
+        }
         let cmds = self.take_pending();
-        self.step_with(cmds)
-    }
-
-    /// Step with an explicit, already-ordered command list (lockstep clients).
-    pub fn step_with(&mut self, cmds: Vec<Command>) -> TickReport {
         let report = self.state.step(&cmds);
         self.replay.commands.extend(cmds);
         self.replay.final_tick = self.state.tick;

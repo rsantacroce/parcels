@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/parcels_sim", "crates/parcels_net", "crates/parcels_game"]
+members = ["crates/parcels_sim", "crates/parcels_game"]
 
 [workspace.package]
 edition = "2024"
@@ -9,12 +9,9 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 parcels_sim = { path = "crates/parcels_sim" }
-parcels_net = { path = "crates/parcels_net" }
 serde = { version = "1", features = ["derive"] }
 ron = "0.10"
 postcard = { version = "1", features = ["alloc"] }
-renet = "=2.0.0"
-renet_netcode = "=2.0.0"
 bevy = "=0.19.1"
 bevy_egui = "=0.42.0"
 

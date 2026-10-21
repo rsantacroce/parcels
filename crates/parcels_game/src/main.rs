@@ -1,13 +1,11 @@
 //! Parcels — Bevy client.
 //!
 //!   parcels                                   title screen
-//!   parcels --solo [--ai 3] [--map 128x96]    straight into a game vs AI neighbours
-//!   parcels --host [--port 5757] [--slots 4]
-//!   parcels --join 192.168.1.20[:5757]
+//!   parcels --new [--map 128x96] [--city Name] straight into a new city
 //!   parcels --load quicksave | saves/x.ron
 //!   parcels --verify-replay saves/replay.ron  (headless determinism check)
 //!   common: --name Rob --seed 42
-//!   dev:    --shot out.png [--street] [--hour 21] [--wait 4] [--screen new|load|friends|settings]
+//!   dev:    --shot out.png [--street] [--hour 21] [--wait 4] [--screen new|load|settings]
 
 mod audio;
 mod camera;
@@ -31,7 +29,6 @@ use settings::Settings;
 pub enum AppState {
     #[default]
     Menu,
-    Lobby,
     Playing,
 }
 
@@ -114,8 +111,8 @@ fn main() {
     if let Some(s) = arg(&args, "--seed") {
         menu.setup.seed = s;
     }
-    if let Some(n) = arg(&args, "--ai").and_then(|v| v.parse::<u8>().ok()) {
-        menu.setup.parcels = (n + 1).clamp(1, 8);
+    if let Some(c) = arg(&args, "--city") {
+        menu.setup.city_name = c;
     }
     if let Some((w, h)) = arg(&args, "--map").and_then(|v| {
         let (w, h) = v.split_once('x')?;
@@ -125,30 +122,16 @@ fn main() {
         menu.setup.width = w.clamp(parcels_sim::Map::MIN_SIZE, parcels_sim::Map::MAX_SIZE);
         menu.setup.height = h.clamp(parcels_sim::Map::MIN_SIZE, parcels_sim::Map::MAX_SIZE);
     }
-    if let Some(n) = arg(&args, "--slots").and_then(|v| v.parse::<u8>().ok()) {
-        menu.host_slots = n.clamp(2, 8);
-    }
-    if let Some(p) = arg(&args, "--port") {
-        menu.port = p;
-    }
     if let Some(s) = arg(&args, "--screen") {
         menu.screen = match s.as_str() {
             "new" => menu::Screen::NewGame,
             "load" => menu::Screen::Load,
-            "friends" => menu::Screen::Friends,
             "settings" => menu::Screen::Settings,
             _ => menu::Screen::Title,
         };
     }
-    if args.iter().any(|a| a == "--solo") {
-        menu.auto = Some(AutoStart::Solo);
-    } else if args.iter().any(|a| a == "--host") {
-        menu.auto = Some(AutoStart::Host);
-    } else if args.iter().any(|a| a == "--join") {
-        if let Some(a) = arg(&args, "--join") {
-            menu.address = a;
-        }
-        menu.auto = Some(AutoStart::Join);
+    if args.iter().any(|a| a == "--new") {
+        menu.auto = Some(AutoStart::New);
     } else if let Some(p) = arg(&args, "--load") {
         menu.auto = Some(AutoStart::Load(p));
     }

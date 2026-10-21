@@ -1,73 +1,62 @@
-//! Simple rule-based neighbours. The AI is just another command source: it reads
-//! the state and returns commands, exactly like a human clicking. In multiplayer
-//! only the host runs it, and its commands travel the same stream as everyone's.
+//! Autoplay: a simple rule-based mayor that builds a city on its own. It grows
+//! the city behind the title screen and drives headless tuning runs. It is just
+//! another command source: it reads the state and returns commands, exactly like
+//! a human clicking.
 //!
 //! Deterministic: depends only on the state passed in.
 
 use crate::catalog::{Building, Service};
 use crate::command::{Area, CommandKind};
-use crate::ids::PlayerId;
 use crate::map::{Buildable, Density, Pos, Rect, Road, Terrain, TileKind, Zone};
-use crate::player::{AiStrategy, Controller, Parcel, Utility};
 use crate::state::GameState;
 use crate::systems::apply::{plan_bulldoze, plan_place};
 
 const RESERVE: i64 = 1_000_00;
 const STREET: Buildable = Buildable::Road(Road::Street);
 
-/// Should this player think on this tick? Players are staggered.
-pub fn thinks_now(state: &GameState, player: PlayerId) -> bool {
-    let interval = state.config.ai_think_interval.max(1) as u64;
-    (state.tick + player.0 as u64) % interval == 0
+/// Does autoplay think on this tick?
+pub fn thinks_now(state: &GameState) -> bool {
+    state.tick % state.config.ai_think_interval.max(1) as u64 == 0
 }
 
-/// Commands an AI player wants to issue this tick (usually zero or one).
-pub fn plan(state: &GameState, player: PlayerId) -> Vec<CommandKind> {
-    let Some(p) = state.player(player) else { return Vec::new() };
-    let Controller::Ai(strategy) = p.controller else { return Vec::new() };
-    if state.is_over() || !thinks_now(state, player) {
+/// Commands autoplay wants to issue this tick (usually zero or one).
+pub fn plan(state: &GameState) -> Vec<CommandKind> {
+    if !thinks_now(state) {
         return Vec::new();
     }
-    let mut out = Vec::new();
-    for parcel in state.parcels_of(player) {
-        let ctx = Ctx::new(state, player, strategy, parcel);
-        if let Some(cmd) = ctx.next_build() {
-            out.push(cmd);
-            break;
-        }
-    }
-    out.extend(policy(state, player, strategy));
+    let ctx = Ctx::new(state);
+    let mut out: Vec<CommandKind> = ctx.next_build().into_iter().collect();
+    out.extend(policy(state));
     out
 }
 
 struct Ctx<'a> {
     state: &'a GameState,
-    who: PlayerId,
-    strategy: AiStrategy,
-    parcel: &'a Parcel,
+    /// The whole map.
+    rect: Rect,
     /// Street rows, every third row: zones and buildings fill the two between.
     rows: Vec<u16>,
     spine: u16,
 }
 
 /// Columns kept free of zoning so plants, services and parks always have room:
-/// a two-wide strip every `CIVIC_EVERY` columns, starting at the parcel edge.
+/// a two-wide strip every `CIVIC_EVERY` columns, starting at the map edge.
 const CIVIC_EVERY: u16 = 12;
 
 impl<'a> Ctx<'a> {
-    fn new(state: &'a GameState, who: PlayerId, strategy: AiStrategy, parcel: &'a Parcel) -> Self {
-        let r = parcel.rect;
-        Self { state, who, strategy, parcel, rows: (r.min.y + 1..r.max.y).step_by(3).collect(), spine: r.min.x + 2 }
+    fn new(state: &'a GameState) -> Self {
+        let r = Rect::from_corners(Pos::new(0, 0), Pos::new(state.map.width - 1, state.map.height - 1));
+        Self { state, rect: r, rows: (r.min.y + 1..r.max.y).step_by(3).collect(), spine: r.min.x + 2 }
     }
 
     fn civic(&self, p: Pos) -> bool {
-        (p.x - self.parcel.rect.min.x) % CIVIC_EVERY < 2
+        (p.x - self.rect.min.x) % CIVIC_EVERY < 2
     }
 
-    /// Spare income per tick after upkeep and trade.
+    /// Spare income per tick after upkeep.
     fn margin(&self) -> i64 {
-        let s = &self.state.players[self.who.index()].stats;
-        s.taxes + s.trade - s.upkeep
+        let s = &self.state.city.stats;
+        s.taxes - s.upkeep
     }
 
     /// Can we carry another `b` without sliding into debt?
@@ -76,7 +65,7 @@ impl<'a> Ctx<'a> {
     }
 
     fn treasury(&self) -> i64 {
-        self.state.players[self.who.index()].treasury
+        self.state.city.treasury
     }
 
     fn try_place(&self, tiles: Vec<Pos>, what: Buildable) -> Option<CommandKind> {
@@ -84,13 +73,13 @@ impl<'a> Ctx<'a> {
             return None;
         }
         let area = Area::Tiles(tiles);
-        let plan = plan_place(self.state, self.who, self.parcel.id, &area, what).ok()?;
-        (self.treasury() - plan.cost >= RESERVE).then_some(CommandKind::Place { parcel: self.parcel.id, area, what })
+        let plan = plan_place(self.state, &area, what).ok()?;
+        (self.treasury() - plan.cost >= RESERVE).then_some(CommandKind::Place { area, what })
     }
 
     fn count(&self, b: Building) -> usize {
         let map = &self.state.map;
-        self.parcel.rect.iter().filter(|&p| map.tile(p).kind == TileKind::Building(b) && map.tile(p).is_anchor()).count()
+        self.rect.iter().filter(|&p| map.tile(p).kind == TileKind::Building(b) && map.tile(p).is_anchor()).count()
     }
 
     fn on_street_plan(&self, p: Pos) -> bool {
@@ -103,7 +92,7 @@ impl<'a> Ctx<'a> {
     fn place_building(&self, b: Building, target: Option<Pos>, reach: Option<u32>, want_river: bool) -> Option<CommandKind> {
         let map = &self.state.map;
         let size = b.size();
-        let r = self.parcel.rect;
+        let r = self.rect;
         if r.width() < size || r.height() < size {
             return None;
         }
@@ -119,7 +108,8 @@ impl<'a> Ctx<'a> {
                     continue;
                 }
                 let touches = |pred: &dyn Fn(usize) -> bool| fp.iter().any(|p| map.neighbors4(map.idx(p)).any(&pred));
-                if !touches(&|j| map.tiles[j].kind.is_road()) {
+                // A road on land, so a pipe can reach it too.
+                if !touches(&|j| map.tiles[j].kind.is_road() && map.tiles[j].terrain != Terrain::Water) {
                     continue;
                 }
                 let dist = target.map_or(0, |t| fp.center().manhattan(t));
@@ -140,7 +130,7 @@ impl<'a> Ctx<'a> {
         let map = &self.state.map;
         let mut n = 0;
         let mut first = None;
-        for p in self.parcel.rect.iter() {
+        for p in self.rect.iter() {
             let t = map.tile(p);
             if t.kind.is_zone() && zone.is_none_or(|z| t.kind.zone() == Some(z)) && t.level >= min_level && !t.covered(service) {
                 n += 1;
@@ -152,14 +142,12 @@ impl<'a> Ctx<'a> {
 
     fn next_build(&self) -> Option<CommandKind> {
         let state = self.state;
-        let r = self.parcel.rect;
+        let r = self.rect;
         let map = &state.map;
-        let stats = &state.players[self.who.index()].stats;
+        let stats = &state.city.stats;
         let c = &state.config;
-        let baron = self.strategy == AiStrategy::UtilityBaron;
 
-        // 1. The spine and the first two streets. Both run edge to edge so they meet
-        //    the neighbours' roads, joining everyone into one network.
+        // 1. The spine and the first two streets, edge to edge.
         let spine: Vec<Pos> = (r.min.y..=r.max.y).map(|y| Pos::new(self.spine, y)).collect();
         let streets = |n: usize| -> Vec<Pos> {
             self.rows.iter().take(n).flat_map(|&y| (r.min.x..=r.max.x).map(move |x| Pos::new(x, y))).collect()
@@ -178,21 +166,18 @@ impl<'a> Ctx<'a> {
             .sum();
         let pumps: usize = [Building::WaterPump, Building::WaterTower, Building::WaterTreatment].iter().map(|&b| self.count(b)).sum();
 
-        // 2. Power. Barons overbuild big plants to sell; developers start with
-        //    turbines, buy what neighbours offer, and add clean plants as they grow.
-        let wants_power = if baron {
-            plants == 0 || stats.power.supply < stats.power.demand + 100
-        } else {
-            plants == 0 || (stats.power.unserved > 0 && stats.power.bought < stats.power.unserved)
-        };
+        // 2. Power: start with turbines, keep some headroom, and move to cleaner
+        //    plants as the treasury allows.
+        let wants_power = plants == 0 || stats.power.supply < stats.power.demand + 60;
         if wants_power {
-            let choice = match (baron, plants) {
-                (true, 0) => Building::CoalPlant,
-                (true, _) if self.treasury() > 15_000_00 => Building::GasPlant,
-                (true, _) => Building::CoalPlant,
-                (false, _) if stats.power.demand < 60 || self.treasury() < 8_000_00 => Building::WindTurbine,
-                (false, _) if self.treasury() > 12_000_00 => Building::SolarFarm,
-                (false, _) => Building::CoalPlant,
+            let choice = if stats.power.demand < 60 || self.treasury() < 8_000_00 {
+                Building::WindTurbine
+            } else if self.treasury() > 15_000_00 {
+                Building::GasPlant
+            } else if self.treasury() > 12_000_00 {
+                Building::SolarFarm
+            } else {
+                Building::CoalPlant
             };
             for b in [choice, Building::CoalPlant, Building::WindTurbine] {
                 if let Some(c) = self.place_building(b, None, None, false) {
@@ -207,7 +192,7 @@ impl<'a> Ctx<'a> {
 
         // 3. Water: pipes along every road first, then another source only when
         //    every existing one is powered and supply really falls short.
-        if pumps > 0 || stats.water.bought > 0 {
+        if pumps > 0 {
             let unpiped: Vec<Pos> = roads.iter().copied().filter(|&p| !map.tile(p).pipe).collect();
             if let Some(c) = self.try_place(unpiped, Buildable::WaterPipe) {
                 return Some(c);
@@ -217,14 +202,10 @@ impl<'a> Ctx<'a> {
             let t = map.tile(p);
             t.is_anchor() && t.kind.building().is_some_and(|b| c.building(b).water_supply > 0) && !t.powered
         });
-        let wants_water = !dark_pump
-            && if baron {
-                (pumps == 0 && stats.population > 0) || stats.water.supply < stats.water.demand + 60
-            } else {
-                stats.population > 60 && stats.water.supply + stats.water.bought < stats.water.demand
-            };
+        let wants_water =
+            !dark_pump && ((pumps == 0 && stats.population > 0) || stats.water.supply < stats.water.demand + 40);
         if wants_water {
-            let b = if baron && self.treasury() > 20_000_00 && pumps > 0 { Building::WaterTreatment } else { Building::WaterPump };
+            let b = if self.treasury() > 20_000_00 && pumps > 0 { Building::WaterTreatment } else { Building::WaterPump };
             for b in [b, Building::WaterPump, Building::WaterTower] {
                 if let Some(c) = self.place_building(b, None, None, true) {
                     return Some(c);
@@ -281,15 +262,13 @@ impl<'a> Ctx<'a> {
         // 6. Zone whatever is most in demand, if there isn't already empty zoning
         //    waiting and the lights are on for what's already there.
         let zoned = r.iter().any(|p| map.tile(p).kind.is_zone());
-        let short = stats.power.unserved > stats.power.bought || (baron && stats.water.unserved > 40);
+        let short = stats.power.unserved > 0 || stats.water.unserved > 40;
         if zoned && short {
             return None;
         }
         let schooled = r.iter().any(|p| map.tile(p).covered(Service::Education));
         let mut demand: Vec<(i32, Zone)> = Zone::ALL.iter().map(|&z| (stats.demand[z.index()], z)).collect();
-        if !baron {
-            demand[Zone::Residential.index()].0 += 150;
-        }
+        demand[Zone::Residential.index()].0 += 100;
         demand.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
         for (d, zone) in demand {
             if d <= 0 {
@@ -311,7 +290,7 @@ impl<'a> Ctx<'a> {
                 })
                 .filter(|&p| map.neighbors4(map.idx(p)).any(|j| map.tiles[j].kind.is_road()))
                 .collect();
-            // Industry goes to the far end of the parcel, away from homes.
+            // Industry goes to the far end of the map, away from homes.
             if zone == Zone::Industrial {
                 spots.reverse();
             }
@@ -350,8 +329,8 @@ impl<'a> Ctx<'a> {
             .collect();
         if !dead_ind.is_empty() && self.treasury() > 10_000_00 {
             let area = Area::Tiles(dead_ind);
-            if plan_bulldoze(state, self.who, self.parcel.id, &area).is_ok() {
-                return Some(CommandKind::Bulldoze { parcel: self.parcel.id, area });
+            if plan_bulldoze(state, &area).is_ok() {
+                return Some(CommandKind::Bulldoze { area });
             }
         }
         if self.treasury() > 12_000_00 && self.margin() > 0 {
@@ -360,10 +339,10 @@ impl<'a> Ctx<'a> {
                 .filter(|&p| map.tile(p).kind.zone() == Some(Zone::Residential))
                 .find(|&p| !map.within(p, 3).any(|(j, _)| map.tiles[j].kind.building().is_some_and(|b| b.service().is_none())));
             if let Some(home) = near_homes {
-                let b = match (self.strategy, self.treasury() > 40_000_00) {
-                    (AiStrategy::UtilityBaron, true) => Building::Monument,
-                    (AiStrategy::Developer, true) => Building::SportsField,
-                    (AiStrategy::Developer, false) => Building::Playground,
+                let b = match self.treasury() {
+                    t if t > 60_000_00 => Building::Monument,
+                    t if t > 40_000_00 => Building::SportsField,
+                    t if t > 20_000_00 => Building::Playground,
                     _ => Building::Park,
                 };
                 for b in [b, Building::Park].into_iter().filter(|&b| self.can_run(b)) {
@@ -377,31 +356,15 @@ impl<'a> Ctx<'a> {
     }
 }
 
-fn policy(state: &GameState, who: PlayerId, strategy: AiStrategy) -> Vec<CommandKind> {
-    let p = &state.players[who.index()];
-    let s = &p.stats;
-    let mut out = Vec::new();
-    let (low, high) = match strategy {
-        AiStrategy::UtilityBaron => (6, 11),
-        AiStrategy::Developer => (4, 9),
-    };
-    let tax = if p.treasury < 3_000_00 {
-        (p.tax_rate + 1).min(high)
-    } else if p.treasury > 25_000_00 {
-        p.tax_rate.saturating_sub(1).max(low)
+fn policy(state: &GameState) -> Vec<CommandKind> {
+    let city = &state.city;
+    let (low, high) = (5, 10);
+    let tax = if city.treasury < 3_000_00 {
+        (city.tax_rate + 1).min(high)
+    } else if city.treasury > 25_000_00 {
+        city.tax_rate.saturating_sub(1).max(low)
     } else {
-        p.tax_rate
+        city.tax_rate
     };
-    if tax != p.tax_rate {
-        out.push(CommandKind::SetTaxRate { rate: tax });
-    }
-    let base = state.config.default_utility_price;
-    let markup = if strategy == AiStrategy::UtilityBaron { 2 } else { 0 };
-    for (u, ledger, price) in [(Utility::Power, &s.power, p.power_price), (Utility::Water, &s.water, p.water_price)] {
-        let has_surplus = ledger.supply > ledger.own_use;
-        if has_surplus && price.is_none() {
-            out.push(CommandKind::SetUtilityPrice { utility: u, price: Some(base + markup) });
-        }
-    }
-    out
+    if tax != city.tax_rate { vec![CommandKind::SetTaxRate { rate: tax }] } else { Vec::new() }
 }

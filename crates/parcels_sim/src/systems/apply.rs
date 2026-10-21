@@ -3,9 +3,7 @@
 use std::collections::BTreeSet;
 
 use crate::command::{Area, Command, CommandKind, Rejection};
-use crate::ids::{ParcelId, PlayerId};
 use crate::map::{Buildable, Pos, Rect, Road, Terrain, Tile, TileKind};
-use crate::player::Utility;
 use crate::state::{GameState, TickReport};
 
 /// The tiles a placement would actually change, and what it would cost.
@@ -24,7 +22,8 @@ fn can_place(tile: &Tile, what: Buildable) -> bool {
         Buildable::Road(Road::Street) => tile.kind == TileKind::Empty,
         Buildable::Road(Road::Avenue) => matches!(tile.kind, TileKind::Empty | TileKind::Road(Road::Street)),
         Buildable::PowerLine => !tile.wire && matches!(tile.kind, TileKind::Empty | TileKind::Road(_)),
-        Buildable::WaterPipe => !tile.pipe && land,
+        // Pipes may follow a bridge across water.
+        Buildable::WaterPipe => !tile.pipe && (land || tile.kind.is_road()),
         Buildable::Zone(z, d) => {
             if !land {
                 return false;
@@ -54,56 +53,42 @@ fn place_cost(state: &GameState, tile: &Tile, what: Buildable) -> i64 {
     cost
 }
 
-/// Check ownership and that every tile lies in `parcel`.
-fn check_parcel(state: &GameState, author: PlayerId, parcel: ParcelId, tiles: &[Pos]) -> Result<(), Rejection> {
-    state.player(author).ok_or(Rejection::UnknownPlayer)?;
-    let pc = state.parcel(parcel).ok_or(Rejection::UnknownParcel)?;
-    if pc.owner != author {
-        return Err(Rejection::NotYourParcel);
+/// Check that every tile lies on the map.
+fn check_bounds(state: &GameState, tiles: &[Pos]) -> Result<(), Rejection> {
+    match tiles.iter().find(|&&p| !state.map.in_bounds(p)) {
+        Some(&p) => Err(Rejection::OutsideMap(p)),
+        None => Ok(()),
     }
-    for &p in tiles {
-        if !pc.rect.contains(p) || !state.map.in_bounds(p) {
-            return Err(Rejection::OutsideParcel(p));
-        }
-    }
-    Ok(())
 }
 
-fn afford(state: &GameState, author: PlayerId, plan: Plan) -> Result<Plan, Rejection> {
+fn afford(state: &GameState, plan: Plan) -> Result<Plan, Rejection> {
     if plan.tiles.is_empty() {
         return Err(Rejection::NothingToDo);
     }
-    let have = state.players[author.index()].treasury;
+    let have = state.city.treasury;
     if plan.cost > have {
         return Err(Rejection::InsufficientFunds { need: plan.cost, have });
     }
     Ok(plan)
 }
 
-pub fn plan_place(
-    state: &GameState,
-    author: PlayerId,
-    parcel: ParcelId,
-    area: &Area,
-    what: Buildable,
-) -> Result<Plan, Rejection> {
+pub fn plan_place(state: &GameState, area: &Area, what: Buildable) -> Result<Plan, Rejection> {
     let tiles = area.tiles();
     let size = what.size();
-    // A building's whole footprint must sit inside the parcel, so check it up
-    // front for single placements (the common case) to give a precise reason.
+    // A building's whole footprint must sit on the map, so check it up front
+    // for single placements (the common case) to give a precise reason.
     let footprints: Vec<Pos> =
         if size > 1 { tiles.iter().flat_map(|&a| Rect::square(a, size).iter().collect::<Vec<_>>()).collect() } else { Vec::new() };
-    check_parcel(state, author, parcel, &tiles)?;
+    check_bounds(state, &tiles)?;
     if tiles.len() == 1 {
-        check_parcel(state, author, parcel, &footprints)?;
+        check_bounds(state, &footprints)?;
     }
-    let pc_rect = state.parcels[parcel.index()].rect;
     let mut seen = BTreeSet::new();
     let mut plan = Plan { tiles: Vec::new(), footprints: Vec::new(), cost: 0 };
     for anchor in tiles {
         if let Buildable::Building(b) = what {
             let fp = Rect::square(anchor, size);
-            if !pc_rect.contains_rect(&fp) || fp.iter().any(|p| seen.contains(&p)) {
+            if !fp.iter().all(|p| state.map.in_bounds(p)) || fp.iter().any(|p| seen.contains(&p)) {
                 continue;
             }
             if !fp.iter().all(|p| can_place(state.map.tile(p), what)) {
@@ -127,12 +112,12 @@ pub fn plan_place(
             }
         }
     }
-    afford(state, author, plan)
+    afford(state, plan)
 }
 
-pub fn plan_bulldoze(state: &GameState, author: PlayerId, parcel: ParcelId, area: &Area) -> Result<Plan, Rejection> {
+pub fn plan_bulldoze(state: &GameState, area: &Area) -> Result<Plan, Rejection> {
     let tiles = area.tiles();
-    check_parcel(state, author, parcel, &tiles)?;
+    check_bounds(state, &tiles)?;
     let mut seen = BTreeSet::new();
     let mut plan = Plan { tiles: Vec::new(), footprints: Vec::new(), cost: 0 };
     for p in tiles {
@@ -149,19 +134,16 @@ pub fn plan_bulldoze(state: &GameState, author: PlayerId, parcel: ParcelId, area
             plan.tiles.push(q);
         }
     }
-    afford(state, author, plan)
+    afford(state, plan)
 }
 
 fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
     if cmd.tick != state.tick {
         return Err(Rejection::WrongTick { expected: state.tick });
     }
-    if cmd.kind.is_system() != (cmd.author == PlayerId::SYSTEM) {
-        return Err(if cmd.kind.is_system() { Rejection::NotSystem } else { Rejection::UnknownPlayer });
-    }
     match &cmd.kind {
-        CommandKind::Place { parcel, area, what } => {
-            let plan = plan_place(state, cmd.author, *parcel, area, *what)?;
+        CommandKind::Place { area, what } => {
+            let plan = plan_place(state, area, *what)?;
             for &p in &plan.tiles {
                 let t = state.map.tile_mut(p);
                 if t.terrain == Terrain::Forest && *what != Buildable::WaterPipe {
@@ -189,10 +171,10 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
                     state.map.tile_mut(p).part = i as u8;
                 }
             }
-            state.players[cmd.author.index()].treasury -= plan.cost;
+            state.city.treasury -= plan.cost;
         }
-        CommandKind::Bulldoze { parcel, area } => {
-            let plan = plan_bulldoze(state, cmd.author, *parcel, area)?;
+        CommandKind::Bulldoze { area } => {
+            let plan = plan_bulldoze(state, area)?;
             for &p in &plan.tiles {
                 let t = state.map.tile_mut(p);
                 t.kind = TileKind::Empty;
@@ -205,35 +187,23 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
                     t.terrain = Terrain::Land;
                 }
             }
-            state.players[cmd.author.index()].treasury -= plan.cost;
+            state.city.treasury -= plan.cost;
         }
         CommandKind::SetTaxRate { rate } => {
             let max = state.config.max_tax_rate;
             if *rate > max {
                 return Err(Rejection::InvalidTaxRate { max });
             }
-            state.player_mut(cmd.author).ok_or(Rejection::UnknownPlayer)?.tax_rate = *rate;
-        }
-        CommandKind::SetUtilityPrice { utility, price } => {
-            let p = state.player_mut(cmd.author).ok_or(Rejection::UnknownPlayer)?;
-            match utility {
-                Utility::Power => p.power_price = *price,
-                Utility::Water => p.water_price = *price,
-            }
-        }
-        CommandKind::SetController { player, controller, name } => {
-            let p = state.player_mut(*player).ok_or(Rejection::UnknownPlayer)?;
-            p.controller = controller.clone();
-            p.name = name.clone();
+            state.city.tax_rate = *rate;
         }
     }
     Ok(())
 }
 
 pub fn run(state: &mut GameState, commands: &[Command], report: &mut TickReport) {
-    // Deterministic order regardless of arrival order: author, then sequence.
+    // Deterministic order regardless of arrival order.
     let mut ordered: Vec<&Command> = commands.iter().collect();
-    ordered.sort_by_key(|c| (c.author, c.seq));
+    ordered.sort_by_key(|c| c.seq);
     for cmd in ordered {
         match apply_one(state, cmd) {
             Ok(()) => report.applied.push(cmd.clone()),

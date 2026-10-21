@@ -4,7 +4,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::{Building, Category, Service};
-use crate::ids::ParcelId;
 use crate::rng::Rng;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -188,9 +187,6 @@ pub struct Tile {
     pub wire: bool,
     /// Water pipe overlay (underground).
     pub pipe: bool,
-    /// Owning parcel. The owner is `parcels[parcel].owner`, so handing a parcel to
-    /// someone else is a single field change.
-    pub parcel: ParcelId,
     /// Index of this tile inside its building's footprint, row-major from the
     /// anchor (min corner) = 0. Always 0 for everything else.
     pub part: u8,
@@ -210,13 +206,12 @@ pub struct Tile {
 }
 
 impl Tile {
-    fn new(parcel: ParcelId) -> Self {
+    fn new() -> Self {
         Self {
             terrain: Terrain::Land,
             kind: TileKind::Empty,
             wire: false,
             pipe: false,
-            parcel,
             part: 0,
             powered: false,
             watered: false,
@@ -355,7 +350,7 @@ impl Map {
     pub const MAX_SIZE: u16 = 256;
 
     pub fn new(width: u16, height: u16) -> Self {
-        Self { width, height, tiles: vec![Tile::new(ParcelId::NONE); width as usize * height as usize] }
+        Self { width, height, tiles: vec![Tile::new(); width as usize * height as usize] }
     }
 
     pub fn len(&self) -> usize {

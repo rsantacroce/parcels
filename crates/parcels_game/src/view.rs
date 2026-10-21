@@ -1,8 +1,7 @@
-//! What the player is looking at: overlay, whose neighbourhood is "active", and
-//! the colour ramps shared by the 3D world, the minimap and the HUD.
+//! What the player is looking at: overlay, and the colour ramps shared by the 3D world, the minimap and the HUD.
 
 use bevy::prelude::*;
-use parcels_sim::{GameState, PlayerId, Service, TileKind};
+use parcels_sim::{GameState, Service, TileKind};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Overlay {
@@ -16,11 +15,10 @@ pub enum Overlay {
     Traffic,
     Crime,
     Services,
-    Owners,
 }
 
 impl Overlay {
-    pub const ALL: [Overlay; 10] = [
+    pub const ALL: [Overlay; 9] = [
         Overlay::None,
         Overlay::LandValue,
         Overlay::Power,
@@ -30,7 +28,6 @@ impl Overlay {
         Overlay::Traffic,
         Overlay::Crime,
         Overlay::Services,
-        Overlay::Owners,
     ];
 
     pub fn label(self) -> &'static str {
@@ -44,37 +41,20 @@ impl Overlay {
             Overlay::Traffic => "Traffic",
             Overlay::Crime => "Crime",
             Overlay::Services => "Services",
-            Overlay::Owners => "Owners",
         }
     }
 
-    /// Number key that selects it (0 = the tenth).
+    /// Number key that selects it.
     pub fn key(self) -> &'static str {
-        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"][Overlay::ALL.iter().position(|&o| o == self).unwrap()]
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9"][Overlay::ALL.iter().position(|&o| o == self).unwrap()]
     }
 }
 
 #[derive(Resource, Default)]
 pub struct View {
     pub overlay: Overlay,
-    /// The player whose parcels we act for (hot-seat switches this).
-    pub active: Option<PlayerId>,
     /// Draw underground pipes (pipe and pump tools, water overlay).
     pub show_pipes: bool,
-}
-
-pub fn player_color(id: PlayerId) -> [u8; 3] {
-    const C: [[u8; 3]; 8] = [
-        [235, 87, 87],
-        [80, 160, 245],
-        [245, 190, 60],
-        [170, 110, 235],
-        [70, 205, 160],
-        [245, 130, 190],
-        [150, 200, 70],
-        [240, 140, 60],
-    ];
-    C[id.index() % C.len()]
 }
 
 pub fn mix(a: [u8; 3], b: [u8; 3], t: u32) -> [u8; 3] {
@@ -125,7 +105,6 @@ pub fn overlay_tint(state: &GameState, overlay: Overlay, idx: usize) -> Option<(
             let n = Service::ALL.iter().filter(|s| t.covered(**s)).count() as u32;
             (heat(255 - n * 255 / 4), 190)
         }
-        Overlay::Owners => (player_color(state.owner_of_idx(idx)?), 150),
     })
 }
 

@@ -69,6 +69,8 @@ pub struct GameSetup {
     /// Starting money in whole dollars.
     pub money: i64,
     pub fires: bool,
+    /// Unlock the catalogue era by era.
+    pub eras: bool,
     pub seed: String,
 }
 
@@ -82,6 +84,7 @@ impl Default for GameSetup {
             city_name: "New Harbor".into(),
             money: 20_000,
             fires: true,
+            eras: true,
             seed: String::new(),
         }
     }
@@ -101,6 +104,7 @@ impl GameSetup {
         if !self.fires {
             c.fire_chance_per_million = 0;
         }
+        c.eras = self.eras;
         c
     }
 
@@ -431,6 +435,9 @@ fn setup_editor(ui: &mut egui::Ui, s: &mut GameSetup) {
         ui.end_row();
         ui.label("Fires");
         ui.checkbox(&mut s.fires, "Buildings without a fire station nearby can burn");
+        ui.end_row();
+        ui.label("Eras");
+        ui.checkbox(&mut s.eras, "Start as a town and unlock more as the city grows (off: everything from day one)");
         ui.end_row();
         ui.label("Map seed");
         ui.horizontal(|ui| {

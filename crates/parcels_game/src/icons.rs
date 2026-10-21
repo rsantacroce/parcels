@@ -88,6 +88,8 @@ pub enum Icon {
     Plane,
     Cube,
     Mail,
+    Lock,
+    Era,
     Bus,
     BusStop,
     Ballot,
@@ -595,6 +597,24 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, bg: Color32) {
             k.path(&[(0.1, 0.26), (0.5, 0.56), (0.9, 0.26)], 0.05, INK);
             k.frame(0.08, 0.22, 0.92, 0.78, 0.06, 0.06, INK);
             k.circle(0.8, 0.3, 0.12, BAD);
+        }
+        Icon::Lock => {
+            k.arc(0.5, 0.42, 0.2, PI, TAU, 0.09, INK_SOFT);
+            k.line((0.3, 0.42), (0.3, 0.5), 0.09, INK_SOFT);
+            k.line((0.7, 0.42), (0.7, 0.5), 0.09, INK_SOFT);
+            k.rect(0.2, 0.48, 0.8, 0.9, 0.08, GOLD);
+            k.circle(0.5, 0.64, 0.06, INK);
+            k.line((0.5, 0.66), (0.5, 0.78), 0.05, INK);
+        }
+        Icon::Era => {
+            k.rect(0.06, 0.62, 0.3, 0.92, 0.02, BRICK);
+            k.poly(&[(0.04, 0.64), (0.18, 0.5), (0.32, 0.64)], BARK);
+            k.rect(0.36, 0.4, 0.6, 0.92, 0.02, STEEL);
+            k.rect(0.64, 0.1, 0.94, 0.92, 0.02, NAVY);
+            for j in 0..4 {
+                k.rect(0.7, 0.18 + j as f32 * 0.17, 0.88, 0.26 + j as f32 * 0.17, 0.0, ACCENT_SOFT);
+            }
+            k.star(0.2, 0.2, 0.14, 0.05, 4, GOLD);
         }
         Icon::Bus => {
             k.rect(0.08, 0.2, 0.92, 0.78, 0.1, GOLD);

@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use parcels_sim::systems::growth::growth_block;
+use parcels_sim::era;
 use parcels_sim::mayor::area_name;
 use parcels_sim::{fmt_money, mood_word, Buildable, Category, CommandKind, Election, Factor, GameState, Letter, LetterState, Pos, Service, Terrain, TileKind, Zone};
 
@@ -50,6 +51,7 @@ enum Dialog {
     Load,
     Help,
     Election(Election),
+    Era(u8),
 }
 
 #[derive(Resource)]
@@ -210,6 +212,7 @@ fn digest_feed(
     let Some(state) = driver.state() else { return };
     let mut autosave = false;
     let mut election = None;
+    let mut new_era = None;
     for r in reports {
         if !driver.showcase {
             let letter = |id: &u32| state.city.mayor.letter(*id);
@@ -225,6 +228,7 @@ fn digest_feed(
                 toasts.warn(format!("{} gave up waiting: {}", l.from, l.goal().to_lowercase()));
             }
             election = election.or(r.election);
+            new_era = r.new_era.or(new_era);
         }
         for (_, why) in &r.rejected {
             toasts.warn(why.to_string());
@@ -260,6 +264,11 @@ fn digest_feed(
             let _ = saves::save(&snapshot, "Autosave");
         });
         toasts.info("Autosaved");
+    }
+    if let Some(e) = new_era {
+        sfx.push(Sfx::Milestone);
+        hud.dialog = Dialog::Era(e);
+        driver.paused = true;
     }
     if let Some(e) = election {
         sfx.push(if e.won { Sfx::Milestone } else { Sfx::Error });
@@ -520,6 +529,10 @@ fn hud(
                         ui.set_width(210.0);
                         ui.vertical_centered(|ui| {
                             ui.label(egui::RichText::new(&city.name).size(20.0).strong().color(pal::INK));
+                            if state.config.eras {
+                                ui.add_space(-6.0);
+                                ui.label(caps(&format!("{} ERA", era::name(city.era).to_uppercase())));
+                            }
                         });
                         let (y, m, d) = state.date();
                         let date = format!("{} {}, {}", MONTHS[(m - 1) as usize], d, FIRST_YEAR + y - 1);
@@ -631,7 +644,8 @@ fn hud(
                             ts.set(Tool::Inspect);
                         } else {
                             hud.flyout = Some(Flyout::Build(c));
-                            let pick = ts.last_in(c).unwrap_or(items(c)[0]);
+                            let open = items(c).into_iter().find(|&b| era::unlocked(&state, b)).unwrap_or(items(c)[0]);
+                            let pick = ts.last_in(c).filter(|&b| era::unlocked(&state, b)).unwrap_or(open);
                             ts.set(Tool::Build(pick));
                         }
                     }
@@ -660,6 +674,19 @@ fn hud(
                             });
                             ui.add_space(4.0);
                             for b in items(c) {
+                                if !era::unlocked(&state, b) {
+                                    let r = icons::menu_button(ui, Icon::Lock, &b.name(), 270.0, 36.0, false);
+                                    ui.painter().rect_filled(r.rect, 10.0, pal::PAPER.gamma_multiply(0.45));
+                                    ui.painter().text(
+                                        r.rect.right_center() - egui::vec2(10.0, 0.0),
+                                        egui::Align2::RIGHT_CENTER,
+                                        format!("{} era", era::name(b.era())),
+                                        egui::FontId::proportional(12.5),
+                                        pal::INK_SOFT,
+                                    );
+                                    r.on_hover_text(format!("{}\n\nUnlocks in the {}", item_tooltip(&state, b), era_when(&state, b.era())));
+                                    continue;
+                                }
                                 let cost = state.config.cost(b);
                                 let per = if matches!(b, Buildable::Building(_)) { "" } else { "/tile" };
                                 let key = hotkey(Tool::Build(b)).map(|k| format!("  [{k}]")).unwrap_or_default();
@@ -999,6 +1026,19 @@ fn city_card(ui: &mut egui::Ui, state: &GameState) {
             ui.label(egui::RichText::new("No complaints right now.").color(pal::GOOD));
         }
     }
+    if state.config.eras {
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            icons::inline(ui, Icon::Era, 18.0);
+            ui.label(egui::RichText::new(format!("{} era", era::name(state.city.era))).strong());
+        });
+        if state.city.era < era::LAST {
+            let next = state.city.era + 1;
+            let need = state.config.era_population[(next - 2) as usize];
+            ui.add(egui::ProgressBar::new((s.population as f32 / need as f32).min(1.0)).desired_width(300.0).text(format!("{} / {need} residents", s.population)));
+            ui.label(egui::RichText::new(format!("Next: the {}", era_when(state, next))).small().color(pal::INK_SOFT));
+        }
+    }
     ui.add_space(6.0);
     ui.label(caps("WHAT RESIDENTS THINK"));
     for f in Factor::ALL {
@@ -1216,6 +1256,36 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                 });
             });
         }
+        Dialog::Era(e) => {
+            center(&format!("The {} era", era::name(e))).show(ctx, |ui| {
+                ui.set_width(420.0);
+                ui.horizontal(|ui| {
+                    icons::inline(ui, Icon::Era, 44.0);
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new(format!("{} has grown into a new era.", state.city.name)).size(16.0).strong());
+                        ui.label(era::blurb(e));
+                    });
+                });
+                ui.add_space(6.0);
+                ui.label(caps("NEW TO BUILD"));
+                egui::Grid::new("era_unlocks").num_columns(2).spacing([18.0, 4.0]).show(ui, |ui| {
+                    for (i, b) in era::unlocks(e).into_iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            icons::inline(ui, Icon::for_buildable(b), 20.0);
+                            ui.label(b.name());
+                        });
+                        if i % 2 == 1 {
+                            ui.end_row();
+                        }
+                    }
+                });
+                ui.add_space(6.0);
+                if icons::menu_button(ui, Icon::Play, "Carry on building", 220.0, 36.0, true).clicked() {
+                    hud.dialog = Dialog::None;
+                    driver.paused = false;
+                }
+            });
+        }
         Dialog::Help => {
             center("Controls").show(ctx, |ui| {
                 ui.set_width(440.0);
@@ -1250,6 +1320,14 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
             });
         }
     }
+}
+
+/// "City era: at 1,500 residents or in JAN 2028".
+fn era_when(state: &GameState, e: u8) -> String {
+    let i = (e.max(2) - 2) as usize;
+    let c = &state.config;
+    let tick = c.era_years[i] as u64 * 12 * c.ticks_per_month as u64;
+    format!("{} era: at {} residents or in {}", era::name(e), c.era_population[i], calendar(state, tick))
 }
 
 /// Whole months from now until `tick`.

@@ -5,6 +5,8 @@ fn small_city(seed: u64) -> GameState {
     let mut config = Config::default();
     config.map_width = 32;
     config.map_height = 16;
+    // Mechanics tests get the whole catalogue; eras have their own test.
+    config.eras = false;
     GameState::new(&NewGame::new(seed, config, "Testville"))
 }
 
@@ -410,4 +412,42 @@ fn buses_take_commuters_off_the_road_and_earn_fares() {
     assert!(st.bus_riders > 0, "riders {}", st.bus_riders);
     assert!(st.fares > 0);
     assert!(traffic_at(&s.state, 15) < before, "{} < {before}", traffic_at(&s.state, 15));
+}
+
+#[test]
+fn eras_unlock_by_population_or_by_year() {
+    let mut config = small_city(11).config;
+    config.eras = true;
+    let mut s = Session::new(GameState::new(&NewGame::new(11, config, "Testville")));
+    dry(&mut s.state);
+    assert_eq!(s.state.city.era, era::FIRST);
+    let r = place(&mut s, (0, 0), (5, 0), Buildable::Road(Road::Avenue));
+    assert!(matches!(r.rejected[0].1, Rejection::Locked { era: 2 }));
+    assert!(place(&mut s, (0, 0), (5, 0), Buildable::Road(Road::Street)).rejected.is_empty());
+
+    // Enough people brings the next era at once.
+    for p in Rect::from_corners(Pos::new(0, 2), Pos::new(31, 5)).iter() {
+        let t = s.state.map.tile_mut(p);
+        t.kind = TileKind::Zone(Zone::Residential, Density::Low);
+        t.level = 3;
+    }
+    s.state.config.decay_chance_per_mille = 0;
+    let mut eras = Vec::new();
+    for _ in 0..3 {
+        eras.extend(s.tick().new_era);
+    }
+    assert!(s.state.city.stats.population >= s.state.config.era_population[0]);
+    assert_eq!(eras, vec![2]);
+    assert!(place(&mut s, (6, 0), (9, 0), Buildable::Road(Road::Avenue)).rejected.is_empty());
+
+    // An empty town gets there by the calendar instead, and never goes back.
+    let mut config = small_city(12).config;
+    config.eras = true;
+    let mut t = Session::new(GameState::new(&NewGame::new(12, config, "Slowville")));
+    let year = t.state.config.ticks_per_month as u64 * 12;
+    let mut eras = Vec::new();
+    while t.state.tick < year * 11 {
+        eras.extend(t.tick().new_era);
+    }
+    assert_eq!(eras, vec![2, 3, 4]);
 }

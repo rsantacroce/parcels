@@ -68,6 +68,14 @@ votes, and you need 50% approval to win. Lose and you can stay on as caretaker.
 Approval also feeds back into growth: a popular mayor draws newcomers, an
 unpopular one drives them away.
 
+**Eras.** A new city starts as a **Town** with streets, small zones, coal and
+wind, buses and the basic services. The **City** era (1,500 residents, or year 4)
+adds avenues, offices, gas and solar power, water treatment, the town hall,
+monument and sports field. **Metropolis** (6,000, or year 7) brings dense zones,
+hospitals, universities and the stadium; **Modern** (15,000, or year 11) nuclear
+power and the airport. Whichever comes first, population or calendar, and an era
+is never lost. Turn eras off when founding a city to have everything from day one.
+
 **Getting around.** Every few ticks the city works out its commute: residents
 travel the cheapest way along the roads to the nearest jobs that still have
 room, and each road's traffic is the number of trips that pass over it. Avenues
@@ -82,7 +90,7 @@ stops reach.
 
 | Crate | What it does |
 | --- | --- |
-| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `City`, `Command`, the building catalog, terrain generation, the nine-stage tick pipeline, autoplay, replays. |
+| `parcels_sim` | Headless simulation. No Bevy, no floats, no wall clock, no hash-map iteration. `GameState`, `City`, `Command`, the building catalog, terrain generation, the nine-stage tick pipeline, eras, autoplay, replays. |
 | `parcels_game` | Bevy client: 3D world built from chunked meshes (`world/`), orbit and street-level cameras, day/night, cosmetic cars and pedestrians, build tools, egui HUD and minimap, title screen, saves, settings, synthesized audio. |
 
 Balance constants live in `config/balance.ron` (money in cents, land value

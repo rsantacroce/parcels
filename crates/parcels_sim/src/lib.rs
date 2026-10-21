@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod city;
 pub mod command;
 pub mod config;
+pub mod era;
 pub mod hash;
 pub mod map;
 pub mod mayor;

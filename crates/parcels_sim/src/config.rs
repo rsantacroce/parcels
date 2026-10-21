@@ -152,6 +152,14 @@ pub struct Config {
     /// Fare per rider per month, cents.
     pub bus_fare: i64,
 
+    // ---- Eras ----
+    /// Unlock the catalogue era by era. Off: everything from the start.
+    pub eras: bool,
+    /// Population that brings the City, Metropolis and Modern eras…
+    pub era_population: [u32; 3],
+    /// …or the year (counting from 1) after which they arrive anyway.
+    pub era_years: [u16; 3],
+
     // ---- Mayor ----
     /// Months between elections.
     pub election_interval_months: u16,
@@ -327,6 +335,10 @@ impl Default for Config {
             bus_share_percent: 40,
             bus_depot_riders: 600,
             bus_fare: 20,
+
+            eras: true,
+            era_population: [1_500, 6_000, 15_000],
+            era_years: [3, 6, 10],
 
             election_interval_months: 48,
             reelection_percent: 50,

@@ -44,6 +44,8 @@ pub enum Rejection {
     NothingToDo,
     InsufficientFunds { need: i64, have: i64 },
     InvalidTaxRate { max: u8 },
+    /// Not available until the city reaches this era.
+    Locked { era: u8 },
 }
 
 impl std::fmt::Display for Rejection {
@@ -56,6 +58,7 @@ impl std::fmt::Display for Rejection {
                 write!(f, "not enough money: need {}, have {}", crate::fmt_money(*need), crate::fmt_money(*have))
             }
             Rejection::InvalidTaxRate { max } => write!(f, "tax rate must be 0..={max}%"),
+            Rejection::Locked { era } => write!(f, "unlocks in the {} era", crate::era::name(*era)),
         }
     }
 }

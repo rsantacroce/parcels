@@ -152,4 +152,8 @@ pub struct City {
     pub stats: CityStats,
     #[serde(default)]
     pub mayor: Mayor,
+    /// The era reached, `era::FIRST..=era::LAST` (0 in old saves until the
+    /// first tick works it out).
+    #[serde(default)]
+    pub era: u8,
 }

@@ -35,6 +35,8 @@ pub struct TickReport {
     pub letters_granted: Vec<u32>,
     pub letters_missed: Vec<u32>,
     pub election: Option<crate::mayor::Election>,
+    /// The era the city just entered, if it did this tick.
+    pub new_era: Option<u8>,
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +67,7 @@ impl GameState {
             tax_rate: config.default_tax_rate,
             stats: CityStats { approval: 500, ..CityStats::default() },
             mayor: Mayor::default(),
+            era: if config.eras { crate::era::FIRST } else { crate::era::LAST },
         };
         let mut state = Self { tick: 0, seed: setup.seed, config, map, city };
         // Settle derived values so the very first frame shows sensible numbers.
@@ -104,6 +107,14 @@ impl GameState {
         systems::commute::run(self);
         systems::economy::run(self);
         systems::status::run(self);
+        let era = crate::era::reached(self);
+        if era != self.city.era {
+            // Old saves start at 0 and catch up silently.
+            if self.city.era != 0 {
+                report.new_era = Some(era);
+            }
+            self.city.era = era;
+        }
         systems::mayor::run(self, &mut report);
 
         self.tick += 1;

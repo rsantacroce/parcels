@@ -73,6 +73,9 @@ fn afford(state: &GameState, plan: Plan) -> Result<Plan, Rejection> {
 }
 
 pub fn plan_place(state: &GameState, area: &Area, what: Buildable) -> Result<Plan, Rejection> {
+    if !crate::era::unlocked(state, what) {
+        return Err(Rejection::Locked { era: what.era() });
+    }
     let tiles = area.tiles();
     let size = what.size();
     // A building's whole footprint must sit on the map, so check it up front

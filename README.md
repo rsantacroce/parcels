@@ -43,7 +43,7 @@ F10 menu, H help, ` toggles the side panel.
 
 | Category | Items |
 | --- | --- |
-| Transport | street, avenue (faster, carries more), bridges over water, bus stop, bus depot |
+| Transport | street, avenue (faster, carries more), bridges over water, rail track (level crossings, rail bridges), bus stop, bus depot, train station |
 | Zones | residential, commercial, industrial, office; low or high density |
 | Power | power line, coal, gas, wind turbine, solar farm, nuclear (1×1 to 3×3) |
 | Water | pipe, pump (bonus by the river), water tower, treatment plant |
@@ -92,9 +92,13 @@ room, and each road's traffic is the number of trips that pass over it. Avenues
 are quicker and carry more, so routes favour them. Homes cut off from every job
 count as out of work. Bus stops go beside a road; a powered bus depot on the
 same road network makes them work, and trips that start and end near working
-stops partly go by bus, which takes cars off the road and earns fares. The
-Traffic view (7) colours every road by load, and the Buses view (0) shows where
-stops reach.
+stops partly go by bus, which takes cars off the road and earns fares. Rail track can cross roads at level crossings and water on bridges. A train
+station must touch the track and a road, and works once its line has another
+station or runs off the map to a neighbouring city. Homes near a working
+station send half their commuters by train, to jobs near another station or to
+the neighbour down the line, before anyone takes the road. The Traffic view (7)
+colours every road by load, and the Buses & trains view (0) shows where stops
+and stations reach.
 
 ## Layout
 

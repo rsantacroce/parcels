@@ -411,6 +411,7 @@ fn item_tooltip(state: &GameState, b: Buildable) -> String {
             parcels_sim::Road::Street => "Two-lane street. Zones within two tiles of a road can grow.".into(),
             parcels_sim::Road::Avenue => "Four lanes with a median: about half the congestion. Drag over streets to upgrade.".into(),
         },
+        Buildable::Rail => "Railway track. Crosses roads at level crossings and water on bridges. Stations on the line carry commuters off the roads.".into(),
         Buildable::PowerLine => "Carries power between plants and zones. Can run over roads and water.".into(),
         Buildable::WaterPipe => "Underground water main. Zones pass water on to their neighbours.".into(),
     }
@@ -981,7 +982,7 @@ fn hud(
 
 fn tool_hint(tool: Tool) -> &'static str {
     match tool {
-        Tool::Build(Buildable::Road(_) | Buildable::PowerLine | Buildable::WaterPipe) => "Drag to lay a line. Right-click cancels.",
+        Tool::Build(Buildable::Road(_) | Buildable::Rail | Buildable::PowerLine | Buildable::WaterPipe) => "Drag to lay a line. Right-click cancels.",
         Tool::Build(Buildable::Building(b)) if b.size() > 1 => "Click to place; the footprint centres on the cursor.",
         Tool::Build(Buildable::Building(_)) => "Click to place, or drag to place several.",
         _ => "Drag to paint an area. Right-click cancels.",
@@ -1038,6 +1039,13 @@ fn hover_lines(state: &GameState, at: parcels_sim::Pos) -> Option<Vec<String>> {
     let idx = state.map.idx(at);
     let mut lines = Vec::new();
     match t.kind {
+        TileKind::Empty if t.rail => {
+            lines.push(if t.terrain == Terrain::Water { "Rail bridge" } else { "Rail track" }.into());
+            if t.covered(Service::Rail) {
+                lines.push("Near a working station".into());
+            }
+            return Some(lines);
+        }
         TileKind::Empty => return None,
         TileKind::Road(r) => {
             let name = if r == parcels_sim::Road::Avenue { "Avenue" } else { "Street" };
@@ -1051,6 +1059,9 @@ fn hover_lines(state: &GameState, at: parcels_sim::Pos) -> Option<Vec<String>> {
             }));
             if t.covered(Service::Transit) {
                 lines.push("Bus stop nearby".into());
+            }
+            if t.rail {
+                lines.push("Level crossing".into());
             }
             return Some(lines);
         }
@@ -1161,6 +1172,7 @@ fn city_card(ui: &mut egui::Ui, state: &GameState) {
             (Icon::Car, "Commute to work", format!("{} min", s.commute_minutes), if s.commute_minutes > 20 { pal::WARN } else { pal::INK }),
             (Icon::People, "Commuters", s.commuters.to_string(), pal::INK),
             (Icon::Bus, "By bus", format!("{} ({}%)", s.bus_riders, pct(s.bus_riders)), pal::INK),
+            (Icon::Train, "By train", format!("{} ({}%)", s.train_riders, pct(s.train_riders)), pal::INK),
             (Icon::Warning, "No road to work", s.stranded.to_string(), if s.stranded > 0 { pal::BAD } else { pal::INK }),
         ] {
             ui.horizontal(|ui| {
@@ -1552,13 +1564,13 @@ fn region_card(ui: &mut egui::Ui, state: &GameState, in_region: bool) {
             ui.label(egui::RichText::new(format!("{} · to the {}", n.name, side.name())).strong());
             ui.label(egui::RichText::new(format!("{} residents · {} open jobs · {} looking for work", n.population, n.open_jobs, n.job_seekers)).small());
             ui.horizontal(|ui| {
-                for (on, icon, what) in [(l.road, Icon::Road, "Road"), (l.power, Icon::PowerLine, "Power"), (l.water, Icon::Pipe, "Water")] {
+                for (on, icon, what) in [(l.road, Icon::Road, "Road"), (l.rail, Icon::Rail, "Rail"), (l.power, Icon::PowerLine, "Power"), (l.water, Icon::Pipe, "Water")] {
                     icons::inline(ui, if on { icon } else { Icon::Cross }, 16.0);
                     ui.label(egui::RichText::new(what).small().color(if on { pal::INK } else { pal::INK_SOFT }));
                 }
             });
             if !l.any() {
-                ui.label(egui::RichText::new(format!("Run a road, power line or pipe to the {} edge to connect.", side.name())).small().color(pal::INK_SOFT));
+                ui.label(egui::RichText::new(format!("Run a road, railway, power line or pipe to the {} edge to connect.", side.name())).small().color(pal::INK_SOFT));
             }
         });
     }
@@ -1678,6 +1690,9 @@ fn inspector(ui: &mut egui::Ui, state: &GameState, pos: parcels_sim::Pos) {
             }
             if t.pipe {
                 kind.push_str(" + pipe");
+            }
+            if t.rail {
+                kind.push_str(" + rail");
             }
             ui.label(kind);
             ui.end_row();

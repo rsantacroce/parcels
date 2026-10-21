@@ -89,6 +89,8 @@ pub enum Icon {
     Cube,
     Mail,
     Map,
+    Rail,
+    Train,
     Lock,
     Era,
     Bus,
@@ -116,12 +118,14 @@ impl Icon {
         match b {
             Buildable::Road(Road::Street) => Icon::Road,
             Buildable::Road(Road::Avenue) => Icon::Avenue,
+            Buildable::Rail => Icon::Rail,
             Buildable::PowerLine => Icon::PowerLine,
             Buildable::WaterPipe => Icon::Pipe,
             Buildable::Zone(z, _) => Icon::for_zone(z),
             Buildable::Building(b) => match b {
                 Building::BusStop => Icon::BusStop,
                 Building::BusDepot => Icon::Bus,
+                Building::TrainStation => Icon::Train,
                 Building::CoalPlant | Building::GasPlant => Icon::Plant,
                 Building::WindTurbine => Icon::Wind,
                 Building::SolarFarm => Icon::Sun,
@@ -155,6 +159,7 @@ impl Icon {
             Ask::Service(Service::Health) => Icon::Health,
             Ask::Service(Service::Education) => Icon::School,
             Ask::Service(Service::Transit) => Icon::BusStop,
+            Ask::Service(Service::Rail) => Icon::Train,
             Ask::Park => Icon::Parks,
             Ask::TaxesAtMost(_) => Icon::Coins,
             Ask::Supply(Utility::Power) => Icon::Power,
@@ -598,6 +603,24 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, bg: Color32) {
             k.path(&[(0.1, 0.26), (0.5, 0.56), (0.9, 0.26)], 0.05, INK);
             k.frame(0.08, 0.22, 0.92, 0.78, 0.06, 0.06, INK);
             k.circle(0.8, 0.3, 0.12, BAD);
+        }
+        Icon::Rail => {
+            k.poly(&[(0.3, 0.06), (0.7, 0.06), (0.86, 0.94), (0.14, 0.94)], Color32::from_rgb(170, 156, 136));
+            for j in 0..5 {
+                let y = 0.14 + j as f32 * 0.18;
+                let w = 0.22 + y * 0.18;
+                k.line((0.5 - w, y), (0.5 + w, y), 0.06, BARK);
+            }
+            k.line((0.4, 0.06), (0.3, 0.94), 0.05, STEEL);
+            k.line((0.6, 0.06), (0.7, 0.94), 0.05, STEEL);
+        }
+        Icon::Train => {
+            k.rect(0.16, 0.1, 0.84, 0.76, 0.14, BRICK);
+            k.rect(0.24, 0.2, 0.76, 0.44, 0.04, SKY.gamma_multiply(0.6));
+            k.circle(0.32, 0.6, 0.06, GOLD);
+            k.circle(0.68, 0.6, 0.06, GOLD);
+            k.line((0.3, 0.76), (0.18, 0.94), 0.06, INK);
+            k.line((0.7, 0.76), (0.82, 0.94), 0.06, INK);
         }
         Icon::Map => {
             k.poly(&[(0.08, 0.2), (0.36, 0.1), (0.36, 0.8), (0.08, 0.9)], LEAF);

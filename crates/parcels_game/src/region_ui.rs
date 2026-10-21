@@ -175,7 +175,12 @@ fn region_ui(
                         let Some((nx, ny)) = view.region.beside(x, y, side) else { continue };
                         let a = view.region.plot(x, y).map(|c| c.links[side.index()]).unwrap_or_default();
                         let b = view.region.plot(nx, ny).map(|c| c.links[side.opposite().index()]).unwrap_or_default();
-                        let icons: Vec<Icon> = [(a.road || b.road, Icon::Road), (a.power || b.power, Icon::PowerLine), (a.water || b.water, Icon::Pipe)]
+                        let icons: Vec<Icon> = [
+                            (a.road || b.road, Icon::Road),
+                            (a.rail || b.rail, Icon::Rail),
+                            (a.power || b.power, Icon::PowerLine),
+                            (a.water || b.water, Icon::Pipe),
+                        ]
                             .into_iter()
                             .filter_map(|(on, i)| on.then_some(i))
                             .collect();

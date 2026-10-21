@@ -37,7 +37,7 @@ impl Tool {
 
     fn shape(self) -> Shape {
         match self {
-            Tool::Build(Buildable::Road(_) | Buildable::PowerLine | Buildable::WaterPipe) => Shape::Line,
+            Tool::Build(Buildable::Road(_) | Buildable::Rail | Buildable::PowerLine | Buildable::WaterPipe) => Shape::Line,
             Tool::Build(Buildable::Building(b)) if b.size() > 1 => Shape::Single,
             Tool::Build(Buildable::Building(b)) if !matches!(b.category(), Category::Parks) && b != Building::WindTurbine => {
                 Shape::Single
@@ -54,6 +54,7 @@ pub fn hotkey(tool: Tool) -> Option<&'static str> {
         Tool::Inspect => "Esc",
         Tool::Bulldoze => "B",
         Tool::Build(Buildable::Road(_)) => "R",
+        Tool::Build(Buildable::Rail) => return None,
         Tool::Build(Buildable::Zone(Zone::Residential, _)) => "Z",
         Tool::Build(Buildable::Zone(Zone::Commercial, _)) => "X",
         Tool::Build(Buildable::Zone(Zone::Industrial, _)) => "C",
@@ -376,7 +377,7 @@ fn ghost_height(b: Buildable) -> f32 {
         Buildable::Building(b) => match b {
             Building::WindTurbine => 40.0,
             Building::CoalPlant | Building::NuclearPlant => 25.0,
-            Building::Hospital | Building::University | Building::TownHall => 22.0,
+            Building::Hospital | Building::University | Building::TownHall | Building::TrainStation => 22.0,
             Building::Park | Building::Plaza | Building::Playground | Building::SportsField | Building::BusStop => 4.0,
             _ => 12.0,
         },

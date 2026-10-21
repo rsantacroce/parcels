@@ -60,7 +60,7 @@ fn chunk_hash(state: &GameState, look: Look, rect: Rect) -> u64 {
     for p in grow.iter() {
         let idx = state.map.idx(p);
         let t = &state.map.tiles[idx];
-        (t.terrain, t.kind, t.wire, t.pipe, t.level, t.part, t.burning > 0).hash(&mut h);
+        (t.terrain, t.kind, t.wire, t.pipe, t.rail, t.level, t.part, t.burning > 0).hash(&mut h);
         if t.kind.building().is_some() {
             t.powered.hash(&mut h);
         }

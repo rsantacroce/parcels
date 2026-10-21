@@ -271,6 +271,9 @@ pub fn build_chunk(state: &GameState, look: Look, area: Rect) -> ChunkMeshes {
             TileKind::Building(b) if t.is_anchor() => building(&mut cx, p, b, t),
             _ => {}
         }
+        if t.rail {
+            rail(&mut cx, p, t);
+        }
         if t.wire {
             wire(&mut cx, p);
         }
@@ -544,6 +547,60 @@ fn lamp(cx: &mut Ctx, at: Vec3, toward: Vec3) {
     let arm = at + Vec3::Y * 6.0 + toward * 1.4;
     cx.m.solid.bar(at + Vec3::Y * 5.9, arm, 0.12, pole);
     cx.m.lights.block(arm - Vec3::new(0.3, 0.25, 0.3), arm + Vec3::new(0.3, -0.05, 0.3), LIT);
+}
+
+/// Track: ballast, sleepers and two rails from the tile centre toward each
+/// neighbouring piece of track. Over water it rides on a deck; over a road it's
+/// a level crossing set into the asphalt.
+fn rail(cx: &mut Ctx, p: Pos, t: &Tile) {
+    let state = cx.state;
+    let joins: Vec<(i32, i32)> = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+        .into_iter()
+        .filter(|&(dx, dy)| tile_at(state, p.x as i32 + dx, p.y as i32 + dy).is_some_and(|n| n.rail))
+        .collect();
+    // A lone piece points along the map's x axis.
+    let joins = if joins.is_empty() { vec![(-1, 0), (1, 0)] } else { joins };
+    let c = tile_center(p);
+    let on_road = t.kind.is_road();
+    let bridge = t.terrain == Terrain::Water && !on_road;
+    let y = if bridge { 0.5 } else if on_road { 0.06 } else { 0.0 };
+    if bridge {
+        cx.m.solid.cuboid(c - Vec3::new(1.5, 0.0, 1.5) + Vec3::Y * BED_Y, c + Vec3::new(1.5, y - 0.3, 1.5), CONCRETE, CONCRETE);
+    }
+    let ballast = cx.c(if bridge { [150, 146, 140] } else { [148, 136, 120] });
+    let sleeper = cx.c([110, 84, 60]);
+    let steel = [200, 200, 205];
+    let half = TILE / 2.0;
+    for (dx, dy) in joins {
+        let dir = Vec3::new(dx as f32, 0.0, dy as f32);
+        let side = Vec3::new(-dir.z, 0.0, dir.x);
+        let (a, b) = (c - dir * 1.2, c + dir * half);
+        let lo = a.min(b) - side.abs() * 2.2;
+        let hi = a.max(b) + side.abs() * 2.2;
+        if !on_road {
+            cx.m.solid.block(lo.with_y(y), hi.with_y(y + 0.35), ballast);
+        }
+        for k in 0..4 {
+            let at = c + dir * (k as f32 * 1.3 + 0.4);
+            let s0 = at - side.abs() * 1.8 - dir.abs() * 0.25;
+            let s1 = at + side.abs() * 1.8 + dir.abs() * 0.25;
+            cx.m.solid.block(s0.with_y(y + 0.35), s1.with_y(y + 0.5), sleeper);
+        }
+        for off in [-1.1f32, 1.1] {
+            let r0 = a + side * off;
+            let r1 = b + side * off;
+            let (lo, hi) = (r0.min(r1) - side.abs() * 0.12, r0.max(r1) + side.abs() * 0.12);
+            cx.m.solid.block(lo.with_y(y + 0.5), hi.with_y(y + 0.75), steel);
+        }
+    }
+    if on_road {
+        // Crossing lights on the corners.
+        for (sx, sz) in [(-1.0f32, -1.0f32), (1.0, 1.0)] {
+            let post = c + Vec3::new(sx * 4.4, 0.0, sz * 4.4);
+            cx.m.solid.block(post - Vec3::new(0.1, 0.0, 0.1), post + Vec3::new(0.1, 3.2, 0.1), [60, 60, 64]);
+            cx.m.lights.block(post + Vec3::new(-0.25, 2.6, -0.25), post + Vec3::new(0.25, 3.0, 0.25), [230, 60, 40]);
+        }
+    }
 }
 
 fn wire(cx: &mut Ctx, p: Pos) {
@@ -854,6 +911,24 @@ fn building(cx: &mut Ctx, p: Pos, b: Building, t: &Tile) {
             let (a, bb) = lot(o, face, 8.7, 0.95, 9.55, 1.3);
             cx.m.solid.block(a.with_y(3.2), bb.with_y(4.2), [230, 170, 40]);
             cx.m.lights.block(a.with_y(3.5) - Vec3::splat(0.02), bb.with_y(3.9) + Vec3::splat(0.02), [255, 230, 160]);
+        }
+        Building::TrainStation => {
+            pad(cx, 0.3, [190, 186, 176]);
+            let brick = k([176, 96, 70], cx);
+            cx.m.solid.cuboid(o + Vec3::new(3.0, 0.0, 6.0), o + Vec3::new(17.0, 8.0, 14.0), brick, [120, 64, 50]);
+            floors(cx.m, o + Vec3::new(3.0, 0.0, 6.0), o + Vec3::new(17.0, 8.0, 14.0), 4.0, seed, 0.5);
+            cx.m.solid.pyramid(o + Vec3::new(2.6, 8.0, 5.6), o + Vec3::new(17.4, 11.0, 14.4), [90, 70, 64]);
+            // Clock tower and platform canopies along both long sides.
+            cx.m.solid.block(o + Vec3::new(8.8, 8.0, 8.8), o + Vec3::new(11.2, 15.0, 11.2), brick);
+            cx.m.solid.pyramid(o + Vec3::new(8.6, 15.0, 8.6), o + Vec3::new(11.4, 17.5, 11.4), [70, 110, 100]);
+            cx.m.lights.block(o + Vec3::new(9.4, 12.6, 8.75), o + Vec3::new(10.6, 13.8, 8.8), [250, 240, 210]);
+            for z in [1.0f32, 16.0] {
+                cx.m.solid.block(o + Vec3::new(1.0, 0.0, z), o + Vec3::new(19.0, 0.8, z + 3.0), [210, 206, 196]);
+                for x in [2.0f32, 10.0, 18.0] {
+                    cx.m.solid.block(o + Vec3::new(x - 0.15, 0.8, z + 1.35), o + Vec3::new(x + 0.15, 4.2, z + 1.65), [70, 70, 76]);
+                }
+                cx.m.solid.block(o + Vec3::new(1.0, 4.2, z), o + Vec3::new(19.0, 4.5, z + 3.0), [70, 110, 100]);
+            }
         }
         Building::BusDepot => {
             pad(cx, 0.4, [92, 92, 96]);

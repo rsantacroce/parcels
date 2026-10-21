@@ -20,12 +20,15 @@ pub struct Agent {
     side: f32,
     walker: bool,
     bus: bool,
+    /// Runs on the rails instead of the roads.
+    train: bool,
 }
 
 #[derive(Resource)]
 pub struct LifeAssets {
     car: Handle<Mesh>,
     bus: Handle<Mesh>,
+    train: Handle<Mesh>,
     person: Handle<Mesh>,
     paints: Vec<Handle<StandardMaterial>>,
     clothes: Vec<Handle<StandardMaterial>>,
@@ -51,6 +54,15 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
     let mut bus = MeshBuf::default();
     bus.cuboid(Vec3::new(-5.0, 0.4, -1.2), Vec3::new(5.0, 3.0, 1.2), [255, 255, 255], [220, 220, 220]);
     bus.block(Vec3::new(-4.6, 1.6, -1.25), Vec3::new(4.6, 2.5, 1.25), [50, 64, 84]);
+    // A locomotive and two carriages, modelled along X like the cars.
+    let mut train = MeshBuf::default();
+    train.cuboid(Vec3::new(3.6, 0.8, -1.4), Vec3::new(8.6, 4.2, 1.4), [190, 60, 50], [90, 40, 36]);
+    train.block(Vec3::new(7.4, 2.6, -1.45), Vec3::new(8.4, 3.6, 1.45), [50, 64, 84]);
+    for x0 in [-6.0f32, -15.2] {
+        train.cuboid(Vec3::new(x0, 0.8, -1.4), Vec3::new(x0 + 9.0, 4.0, 1.4), [230, 226, 214], [150, 146, 140]);
+        train.block(Vec3::new(x0 + 0.6, 2.4, -1.45), Vec3::new(x0 + 8.4, 3.4, 1.45), [50, 64, 84]);
+        train.block(Vec3::new(x0, 1.0, -1.45), Vec3::new(x0 + 9.0, 1.5, 1.45), [190, 60, 50]);
+    }
     let mut person = MeshBuf::default();
     person.block(Vec3::new(-0.22, 0.0, -0.15), Vec3::new(0.22, 0.85, 0.15), [50, 50, 70]);
     person.cuboid(Vec3::new(-0.25, 0.85, -0.17), Vec3::new(0.25, 1.45, 0.17), [255, 255, 255], [255, 255, 255]);
@@ -84,6 +96,7 @@ pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut mater
     commands.insert_resource(LifeAssets {
         car: meshes.add(car.into_mesh()),
         bus: meshes.add(bus.into_mesh()),
+        train: meshes.add(train.into_mesh()),
         person: meshes.add(person.into_mesh()),
         paints,
         clothes,
@@ -108,6 +121,20 @@ fn road_neighbours(state: &GameState, p: Pos) -> Vec<Pos> {
     v
 }
 
+fn rail_neighbours(state: &GameState, p: Pos) -> Vec<Pos> {
+    let mut v = Vec::with_capacity(4);
+    for (dx, dy) in [(0i32, -1i32), (0, 1), (-1, 0), (1, 0)] {
+        let (x, y) = (p.x as i32 + dx, p.y as i32 + dy);
+        if x >= 0 && y >= 0 {
+            let q = Pos::new(x as u16, y as u16);
+            if state.map.get(q).is_some_and(|t| t.rail) {
+                v.push(q);
+            }
+        }
+    }
+    v
+}
+
 fn center(p: Pos) -> Vec3 {
     Vec3::new((p.x as f32 + 0.5) * TILE, 0.0, (p.y as f32 + 0.5) * TILE)
 }
@@ -121,7 +148,7 @@ pub fn populate(
     assets: Option<Res<LifeAssets>>,
     mut rng: ResMut<LifeRng>,
     agents: Query<(Entity, &Agent)>,
-    mut roads_cache: Local<(u64, u64, Vec<Pos>, Vec<Pos>)>,
+    mut roads_cache: Local<(u64, u64, Vec<Pos>, Vec<Pos>, Vec<Pos>)>,
 ) {
     let Some(assets) = assets else { return };
     let Some(state) = driver.as_ref().and_then(|d| d.state()) else {
@@ -148,19 +175,37 @@ pub fn populate(
                 })
             })
             .collect();
+        // Track beside a station, where trains set off from.
+        roads_cache.4 = state
+            .map
+            .bounds()
+            .iter()
+            .filter(|&p| state.map.tile(p).rail)
+            .filter(|&p| {
+                [(0i32, -1i32), (0, 1), (-1, 0), (1, 0)].iter().any(|(dx, dy)| {
+                    let q = Pos::new((p.x as i32 + dx).max(0) as u16, (p.y as i32 + dy).max(0) as u16);
+                    state.map.get(q).is_some_and(|t| t.kind == TileKind::Building(Building::TrainStation))
+                })
+            })
+            .collect();
     }
     let roads = &roads_cache.2;
     let stops = &roads_cache.3;
+    let platforms = &roads_cache.4;
     let mut cars = 0usize;
     let mut walkers = 0usize;
     let mut buses = 0usize;
+    let mut trains = 0usize;
     for (e, a) in &agents {
         // Bulldozed out from under them.
-        if !is_road(state, a.from) || !is_road(state, a.to) {
+        let on = |p: Pos| if a.train { state.map.get(p).is_some_and(|t| t.rail) } else { is_road(state, p) };
+        if !on(a.from) || !on(a.to) {
             commands.entity(e).despawn();
             continue;
         }
-        if a.walker {
+        if a.train {
+            trains += 1;
+        } else if a.walker {
             walkers += 1;
         } else if a.bus {
             buses += 1;
@@ -176,7 +221,33 @@ pub fn populate(
     let want_cars = ((roads.len() as f32 * 0.5 * busy * f) as usize).min(500);
     let want_walkers = ((roads.len() as f32 * 0.35 * busy * f) as usize).min(300);
     let want_buses = if stops.is_empty() { 0 } else { ((state.city.stats.bus_riders as f32 / 60.0 * f).ceil() as usize).min(40) };
+    let want_trains = if platforms.is_empty() { 0 } else { ((state.city.stats.train_riders as f32 / 250.0 * f).ceil() as usize).min(12) };
+    if trains > want_trains {
+        for (e, a) in &agents {
+            if a.train && trains > want_trains {
+                commands.entity(e).despawn();
+                trains -= 1;
+            }
+        }
+    }
+    for _ in 0..(want_trains.saturating_sub(trains)).min(2) {
+        let from = platforms[rng.next() as usize % platforms.len()];
+        let next = rail_neighbours(state, from);
+        if next.is_empty() {
+            continue;
+        }
+        let to = next[rng.next() as usize % next.len()];
+        commands.spawn((
+            Mesh3d(assets.train.clone()),
+            MeshMaterial3d(assets.paints[1].clone()),
+            Transform::from_translation(center(from)),
+            Agent { from, to, t: 0.0, speed: 14.0, side: 0.0, walker: false, bus: false, train: true },
+        ));
+    }
     for (e, a) in &agents {
+        if a.train {
+            continue;
+        }
         let excess = if a.walker {
             walkers > want_walkers
         } else if a.bus {
@@ -236,7 +307,7 @@ pub fn populate(
             Mesh3d(mesh),
             MeshMaterial3d(mat),
             Transform::from_translation(center(from)),
-            Agent { from, to, t: (r % 100) as f32 / 100.0, speed, side, walker, bus },
+            Agent { from, to, t: (r % 100) as f32 / 100.0, speed, side, walker, bus, train: false },
         ));
     };
     for _ in 0..(want_cars.saturating_sub(cars)).min(12) {
@@ -264,7 +335,8 @@ pub fn drive(
         while a.t >= 1.0 {
             a.t -= 1.0;
             // Pick the next street, avoiding U-turns unless it's a dead end.
-            let opts: Vec<Pos> = road_neighbours(state, a.to).into_iter().filter(|&p| p != a.from).collect();
+            let around = if a.train { rail_neighbours(state, a.to) } else { road_neighbours(state, a.to) };
+            let opts: Vec<Pos> = around.into_iter().filter(|&p| p != a.from).collect();
             let next = if opts.is_empty() { a.from } else { opts[rng.next() as usize % opts.len()] };
             a.from = a.to;
             a.to = next;
@@ -275,7 +347,15 @@ pub fn drive(
         let right = Vec3::new(-dir.z, 0.0, dir.x);
         let bridge = state.map.get(a.from).is_some_and(|t| t.terrain == Terrain::Water)
             || state.map.get(a.to).is_some_and(|t| t.terrain == Terrain::Water);
-        let y = if bridge { 0.4 } else if a.walker { 0.15 } else { 0.03 };
+        let y = if a.train {
+            if bridge { 0.5 } else { 0.0 }
+        } else if bridge {
+            0.4
+        } else if a.walker {
+            0.15
+        } else {
+            0.03
+        };
         let pos = p0.lerp(p1, a.t) + right * a.side + Vec3::Y * y;
         tf.translation = pos;
         if dir != Vec3::ZERO {

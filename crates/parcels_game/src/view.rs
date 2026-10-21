@@ -43,7 +43,7 @@ impl Overlay {
             Overlay::Traffic => "Traffic",
             Overlay::Crime => "Crime",
             Overlay::Services => "Services",
-            Overlay::Transit => "Buses",
+            Overlay::Transit => "Buses & trains",
         }
     }
 
@@ -111,6 +111,9 @@ pub fn overlay_tint(state: &GameState, overlay: Overlay, idx: usize) -> Option<(
         }
         Overlay::Transit => match t.kind {
             TileKind::Building(parcels_sim::Building::BusStop | parcels_sim::Building::BusDepot) => ([240, 180, 30], 240),
+            TileKind::Building(parcels_sim::Building::TrainStation) => ([200, 70, 60], 240),
+            _ if t.covered(Service::Transit) && t.covered(Service::Rail) => ([60, 170, 200], 190),
+            _ if t.covered(Service::Rail) => ([150, 110, 210], if t.kind.is_road() { 120 } else { 170 }),
             _ if t.covered(Service::Transit) => ([60, 200, 120], if t.kind.is_road() { 120 } else { 170 }),
             _ => ([20, 20, 30], 110),
         },
@@ -121,6 +124,7 @@ pub fn overlay_tint(state: &GameState, overlay: Overlay, idx: usize) -> Option<(
 pub fn map_color(state: &GameState, overlay: Overlay, idx: usize) -> [u8; 3] {
     let t = &state.map.tiles[idx];
     let base = match t.kind {
+        TileKind::Empty if t.rail => [128, 104, 84],
         TileKind::Empty => match t.terrain {
             parcels_sim::Terrain::Water => [82, 134, 176],
             parcels_sim::Terrain::Forest => [72, 112, 62],

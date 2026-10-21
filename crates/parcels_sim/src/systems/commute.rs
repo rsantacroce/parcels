@@ -81,6 +81,76 @@ impl BusNetwork {
     }
 }
 
+/// Connected rail lines, how many working stations each has, and which map
+/// edges it runs off (toward a neighbour).
+pub struct RailNetwork {
+    pub net: Vec<u32>,
+    pub stations: Vec<u32>,
+    pub crosses: Vec<[bool; 4]>,
+}
+
+impl RailNetwork {
+    pub fn new(state: &GameState) -> Self {
+        let map = &state.map;
+        let mut net = vec![NONE; map.len()];
+        let mut count = 0u32;
+        let mut stack = Vec::new();
+        for i in 0..map.len() {
+            if net[i] != NONE || !map.tiles[i].rail {
+                continue;
+            }
+            net[i] = count;
+            stack.push(i);
+            while let Some(j) = stack.pop() {
+                for k in map.neighbors4(j) {
+                    if net[k] == NONE && map.tiles[k].rail {
+                        net[k] = count;
+                        stack.push(k);
+                    }
+                }
+            }
+            count += 1;
+        }
+        let mut crosses = vec![[false; 4]; count as usize];
+        for side in Side::ALL {
+            if state.neighbours[side.index()].is_none() {
+                continue;
+            }
+            for p in side.edge(map) {
+                let n = net[map.idx(p)];
+                if n != NONE {
+                    crosses[n as usize][side.index()] = true;
+                }
+            }
+        }
+        let mut rails = Self { net, stations: vec![0; count as usize], crosses };
+        for i in 0..map.len() {
+            if let Some(n) = rails.line_of(state, i) {
+                rails.stations[n as usize] += 1;
+            }
+        }
+        rails
+    }
+
+    /// The line a powered station anchor at `idx` sits on.
+    fn line_of(&self, state: &GameState, idx: usize) -> Option<u32> {
+        let map = &state.map;
+        let t = &map.tiles[idx];
+        let draws = state.config.building(Building::TrainStation).power_draw > 0;
+        if t.kind != TileKind::Building(Building::TrainStation) || !t.is_anchor() || (draws && !t.powered) {
+            return None;
+        }
+        map.footprint_at(map.pos(idx)).iter().flat_map(|p| map.neighbors4(map.idx(p))).map(|k| self.net[k]).find(|&n| n != NONE)
+    }
+
+    /// The line of a working station: one with somewhere to go, either
+    /// another station or a neighbouring city down the track.
+    pub fn station_net(&self, state: &GameState, idx: usize) -> Option<u32> {
+        let n = self.line_of(state, idx)?;
+        (self.stations[n as usize] >= 2 || self.crosses[n as usize].iter().any(|&c| c)).then_some(n)
+    }
+}
+
 fn travel_cost(c: &crate::config::Config, kind: TileKind) -> u32 {
     match kind {
         TileKind::Road(Road::Avenue) => c.avenue_travel_cost.max(1),
@@ -125,22 +195,6 @@ pub fn run(state: &mut GameState) {
         }
     }
 
-    // Open jobs in a neighbouring city wait at the roads that cross into it.
-    let links = region::links(state);
-    let edge_roads = |side: Side| -> Vec<usize> {
-        side.edge(map).into_iter().map(|p| map.idx(p)).filter(|&j| map.tiles[j].kind.is_road()).collect()
-    };
-    let mut abroad = vec![0u32; n];
-    for side in Side::ALL {
-        let Some(nb) = &state.neighbours[side.index()] else { continue };
-        if links[side.index()].road {
-            for (j, v) in spread(&edge_roads(side), share(nb.open_jobs)) {
-                abroad[j] += v;
-                open[j] += v;
-            }
-        }
-    }
-
     // Homes, with the trips they still have to place.
     let mut homes: Vec<(usize, u32)> = Vec::new();
     let mut stranded = 0u32;
@@ -155,12 +209,43 @@ pub fn run(state: &mut GameState) {
             }
         }
     }
+    let mut reached = vec![false; homes.len()];
+
+    // Jobs across each border, shared by trains and cars.
+    let links = region::links(state);
+    let mut pool = [0u32; 4];
+    for side in Side::ALL {
+        if let Some(nb) = &state.neighbours[side.index()] {
+            pool[side.index()] = share(nb.open_jobs);
+        }
+    }
+
+    // Trains first: they skip the roads altogether.
+    let rails = RailNetwork::new(state);
+    let (mut commuters, mut minutes, mut out) = (0u32, 0u64, 0u32);
+    let trains = by_train(state, &rails, &mut open, &mut homes, &mut reached, &mut pool);
+    commuters += trains.local + trains.abroad;
+    out += trains.abroad;
+    minutes += TRAIN_MINUTES * (trains.local + trains.abroad) as u64;
+
+    // What's left of a neighbour's jobs waits at the roads that cross into it.
+    let edge_roads = |side: Side| -> Vec<usize> {
+        side.edge(map).into_iter().map(|p| map.idx(p)).filter(|&j| map.tiles[j].kind.is_road()).collect()
+    };
+    let mut abroad = vec![0u32; n];
+    for side in Side::ALL {
+        if links[side.index()].road {
+            for (j, v) in spread(&edge_roads(side), pool[side.index()]) {
+                abroad[j] += v;
+                open[j] += v;
+            }
+        }
+    }
 
     let buses = BusNetwork::new(state);
     let mut left = buses.capacity.clone();
     let mut flow = vec![0u32; n];
-    let (mut commuters, mut riders, mut minutes, mut out) = (0u32, 0u32, 0u64, 0u32);
-    let mut reached = vec![false; homes.len()];
+    let mut riders = 0u32;
     for _ in 0..ROUNDS {
         if homes.iter().all(|h| h.1 == 0) {
             break;
@@ -250,7 +335,7 @@ pub fn run(state: &mut GameState) {
     }
 
     let tpm = c.ticks_per_month.max(1) as i64;
-    let fares = riders as i64 * c.bus_fare / tpm;
+    let fares = (riders as i64 * c.bus_fare + (trains.local + trains.abroad) as i64 * c.train_fare) / tpm;
     let (street, avenue, full) = (c.street_capacity.max(1), c.avenue_capacity.max(1), c.traffic_at_capacity);
     for i in 0..n {
         let t = &mut state.map.tiles[i];
@@ -269,6 +354,89 @@ pub fn run(state: &mut GameState) {
     s.fares = fares;
     s.commuters_out = out;
     s.commuters_in = inbound;
+    s.train_riders = trains.local + trains.abroad;
+}
+
+/// Minutes a train commute takes, door to door.
+const TRAIN_MINUTES: u64 = 12;
+
+struct TrainTrips {
+    local: u32,
+    abroad: u32,
+}
+
+/// Send a share of each home's trips by train, when the home is near a working
+/// station: to open jobs near another station on the same line, or down the
+/// line to a neighbouring city.
+fn by_train(
+    state: &GameState,
+    rails: &RailNetwork,
+    open: &mut [u32],
+    homes: &mut [(usize, u32)],
+    reached: &mut [bool],
+    pool: &mut [u32; 4],
+) -> TrainTrips {
+    let (map, c) = (&state.map, &state.config);
+    let lines = rails.stations.len();
+    let mut trips = TrainTrips { local: 0, abroad: 0 };
+    if lines == 0 {
+        return trips;
+    }
+    // Which line serves each tile (the first working station that reaches it).
+    let mut cover = vec![NONE; map.len()];
+    let radius = c.building(Building::TrainStation).service_radius;
+    for i in 0..map.len() {
+        if let Some(line) = rails.station_net(state, i) {
+            let centre = map.footprint_at(map.pos(i)).center();
+            for (j, _) in map.within(centre, radius) {
+                if cover[j] == NONE {
+                    cover[j] = line;
+                }
+            }
+        }
+    }
+    let mut doors: Vec<Vec<usize>> = vec![Vec::new(); lines];
+    for j in 0..map.len() {
+        if open[j] > 0 && cover[j] != NONE {
+            doors[cover[j] as usize].push(j);
+        }
+    }
+    let mut next = vec![0usize; lines];
+    let mut seats: Vec<u32> = rails.stations.iter().map(|&s| s * c.station_riders).collect();
+    for (h, home) in homes.iter_mut().enumerate() {
+        let line = cover[home.0];
+        if line == NONE || home.1 == 0 {
+            continue;
+        }
+        let l = line as usize;
+        let mut want = (home.1 * c.train_share_percent as u32 / 100).min(seats[l]);
+        let start = want;
+        while want > 0 && next[l] < doors[l].len() {
+            let j = doors[l][next[l]];
+            let t = want.min(open[j]);
+            open[j] -= t;
+            want -= t;
+            trips.local += t;
+            if open[j] == 0 {
+                next[l] += 1;
+            }
+        }
+        for side in 0..4 {
+            if rails.crosses[l][side] {
+                let t = want.min(pool[side]);
+                pool[side] -= t;
+                want -= t;
+                trips.abroad += t;
+            }
+        }
+        let taken = start - want;
+        seats[l] -= taken;
+        home.1 -= taken;
+        if taken > 0 {
+            reached[h] = true;
+        }
+    }
+    trips
 }
 
 /// Split `total` across `tiles`, the first taking the remainder.

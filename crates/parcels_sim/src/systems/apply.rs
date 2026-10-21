@@ -21,6 +21,8 @@ fn can_place(tile: &Tile, what: Buildable) -> bool {
     match what {
         Buildable::Road(Road::Street) => tile.kind == TileKind::Empty,
         Buildable::Road(Road::Avenue) => matches!(tile.kind, TileKind::Empty | TileKind::Road(Road::Street)),
+        // Across open land, water (a bridge), or a road (a level crossing).
+        Buildable::Rail => !tile.rail && !tile.wire && matches!(tile.kind, TileKind::Empty | TileKind::Road(_)),
         Buildable::PowerLine => !tile.wire && matches!(tile.kind, TileKind::Empty | TileKind::Road(_)),
         // Pipes may follow a bridge across water.
         Buildable::WaterPipe => !tile.pipe && (land || tile.kind.is_road()),
@@ -29,13 +31,13 @@ fn can_place(tile: &Tile, what: Buildable) -> bool {
                 return false;
             }
             match tile.kind {
-                TileKind::Empty => !tile.wire,
+                TileKind::Empty => !tile.wire && !tile.rail,
                 // Rezone an empty lot, or densify a built one of the same type.
                 TileKind::Zone(z0, d0) => (z0, d0) != (z, d) && (tile.level == 0 || (z0 == z && d0 < d)),
                 _ => false,
             }
         }
-        Buildable::Building(_) => tile.kind == TileKind::Empty && land && !tile.wire,
+        Buildable::Building(_) => tile.kind == TileKind::Empty && land && !tile.wire && !tile.rail,
     }
 }
 
@@ -44,7 +46,7 @@ fn place_cost(state: &GameState, tile: &Tile, what: Buildable) -> i64 {
         Buildable::Building(_) => 0,
         _ => state.config.cost(what),
     };
-    if matches!(what, Buildable::Road(_)) && tile.terrain == Terrain::Water {
+    if matches!(what, Buildable::Road(_) | Buildable::Rail) && tile.terrain == Terrain::Water && !tile.kind.is_road() {
         cost *= state.config.bridge_cost_multiplier;
     }
     if tile.terrain == Terrain::Forest && what != Buildable::WaterPipe {
@@ -97,7 +99,11 @@ pub fn plan_place(state: &GameState, area: &Area, what: Buildable) -> Result<Pla
             if !fp.iter().all(|p| can_place(state.map.tile(p), what)) {
                 continue;
             }
-            if b.needs_road() && !fp.iter().any(|p| state.map.neighbors4(state.map.idx(p)).any(|j| state.map.tiles[j].kind.is_road())) {
+            let touches = |f: &dyn Fn(&Tile) -> bool| fp.iter().any(|p| state.map.neighbors4(state.map.idx(p)).any(|j| f(&state.map.tiles[j])));
+            if b.needs_road() && !touches(&|t| t.kind.is_road()) {
+                continue;
+            }
+            if b.needs_rail() && !touches(&|t| t.rail) {
                 continue;
             }
             plan.cost += state.config.building(b).cost;
@@ -158,6 +164,7 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
                 match what {
                     Buildable::PowerLine => t.wire = true,
                     Buildable::WaterPipe => t.pipe = true,
+                    Buildable::Rail => t.rail = true,
                     Buildable::Zone(z, d) => {
                         // Densifying keeps what's already built; rezoning starts over.
                         if t.kind.zone() != Some(*z) {
@@ -186,6 +193,7 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
                 t.kind = TileKind::Empty;
                 t.wire = false;
                 t.pipe = false;
+                t.rail = false;
                 t.level = 0;
                 t.part = 0;
                 t.burning = 0;

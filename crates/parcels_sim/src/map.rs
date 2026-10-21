@@ -121,6 +121,9 @@ impl Zone {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Buildable {
     Road(Road),
+    /// Railway track: an overlay on open land, water (a bridge) or a road (a
+    /// level crossing).
+    Rail,
     PowerLine,
     WaterPipe,
     Zone(Zone, Density),
@@ -130,7 +133,7 @@ pub enum Buildable {
 impl Buildable {
     /// Every buildable, in toolbar order.
     pub fn all() -> Vec<Buildable> {
-        let mut v = vec![Buildable::Road(Road::Street), Buildable::Road(Road::Avenue), Buildable::PowerLine, Buildable::WaterPipe];
+        let mut v = vec![Buildable::Road(Road::Street), Buildable::Road(Road::Avenue), Buildable::Rail, Buildable::PowerLine, Buildable::WaterPipe];
         for z in Zone::ALL {
             v.push(Buildable::Zone(z, Density::Low));
             v.push(Buildable::Zone(z, Density::High));
@@ -141,7 +144,7 @@ impl Buildable {
 
     pub fn category(self) -> Category {
         match self {
-            Buildable::Road(_) => Category::Transport,
+            Buildable::Road(_) | Buildable::Rail => Category::Transport,
             Buildable::PowerLine => Category::Power,
             Buildable::WaterPipe => Category::Water,
             Buildable::Zone(..) => Category::Zones,
@@ -154,7 +157,7 @@ impl Buildable {
             Buildable::Road(r) => Some(TileKind::Road(r)),
             Buildable::Zone(z, d) => Some(TileKind::Zone(z, d)),
             Buildable::Building(b) => Some(TileKind::Building(b)),
-            Buildable::PowerLine | Buildable::WaterPipe => None,
+            Buildable::Rail | Buildable::PowerLine | Buildable::WaterPipe => None,
         }
     }
 
@@ -170,6 +173,7 @@ impl Buildable {
         match self {
             Buildable::Road(Road::Street) => "Street".into(),
             Buildable::Road(Road::Avenue) => "Avenue".into(),
+            Buildable::Rail => "Rail track".into(),
             Buildable::PowerLine => "Power line".into(),
             Buildable::WaterPipe => "Water pipe".into(),
             Buildable::Zone(z, Density::Low) => z.name().into(),
@@ -187,6 +191,9 @@ pub struct Tile {
     pub wire: bool,
     /// Water pipe overlay (underground).
     pub pipe: bool,
+    /// Railway track overlay.
+    #[serde(default)]
+    pub rail: bool,
     /// Index of this tile inside its building's footprint, row-major from the
     /// anchor (min corner) = 0. Always 0 for everything else.
     pub part: u8,
@@ -212,6 +219,7 @@ impl Tile {
             kind: TileKind::Empty,
             wire: false,
             pipe: false,
+            rail: false,
             part: 0,
             powered: false,
             watered: false,
@@ -243,7 +251,7 @@ impl Tile {
 
     /// Nothing built and nothing growing: grass, water or sand.
     pub fn is_bare(&self) -> bool {
-        self.kind == TileKind::Empty && !self.wire && !self.pipe && self.terrain != Terrain::Forest
+        self.kind == TileKind::Empty && !self.wire && !self.pipe && !self.rail && self.terrain != Terrain::Forest
     }
 
     /// The anchor tile of a building, or any non-building tile.

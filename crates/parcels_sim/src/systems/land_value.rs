@@ -26,12 +26,17 @@ pub fn run(state: &mut GameState) {
     // Service coverage from powered service buildings, measured from the
     // middle of the footprint. Bus stops work when a depot runs their roads.
     let buses = commute::BusNetwork::new(state);
+    let rails = commute::RailNetwork::new(state);
     let mut coverage = vec![0u8; n];
     for i in 0..n {
         let t = &state.map.tiles[i];
         let TileKind::Building(b) = t.kind else { continue };
         let Some(service) = b.service() else { continue };
-        let working = if service == Service::Transit { buses.stop_works(state, i) } else { t.powered };
+        let working = match service {
+            Service::Transit => buses.stop_works(state, i),
+            Service::Rail => rails.station_net(state, i).is_some(),
+            _ => t.powered,
+        };
         if !t.is_anchor() || !working {
             continue;
         }

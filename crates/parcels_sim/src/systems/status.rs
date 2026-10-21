@@ -38,7 +38,7 @@ pub fn run(state: &mut GameState) {
     let abroad: i64 = crate::region::links(state)
         .iter()
         .zip(&state.neighbours)
-        .filter(|(l, _)| l.road)
+        .filter(|(l, _)| l.people())
         .filter_map(|(_, n)| n.as_ref())
         .map(|n| n.open_jobs as i64)
         .sum();

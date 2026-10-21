@@ -541,3 +541,62 @@ fn neighbours_drive_in_to_fill_open_jobs() {
     assert!(s.state.city.stats.commuters_in > 0);
     assert!(traffic_at(&s.state, 10) > 0);
 }
+
+#[test]
+fn trains_carry_commuters_between_stations() {
+    let run = |stations: bool| {
+        let mut s = Session::new(commuter_town(Road::Street));
+        s.state.city.treasury = 1_000_000_00;
+        let mut station = s.state.config.building(Building::TrainStation);
+        station.power_draw = 0;
+        s.state.config.buildings.insert(Building::TrainStation, station);
+        // A line along row 9, crossing the street that runs down x = 12.
+        assert!(place(&mut s, (12, 6), (12, 12), Buildable::Road(Road::Street)).rejected.is_empty());
+        assert!(place(&mut s, (0, 9), (31, 9), Buildable::Rail).rejected.is_empty(), "level crossing allowed");
+        assert!(s.state.map.tile(Pos::new(12, 9)).rail && s.state.map.tile(Pos::new(12, 9)).kind.is_road());
+        let r = place(&mut s, (5, 9), (5, 9), Buildable::Zone(Zone::Residential, Density::Low));
+        assert!(!r.rejected.is_empty(), "no homes on the tracks");
+        if stations {
+            assert!(place(&mut s, (0, 12), (31, 12), Buildable::Road(Road::Street)).rejected.is_empty());
+            for x in [2u16, 26] {
+                let r = place(&mut s, (x, 10), (x, 10), Buildable::Building(Building::TrainStation));
+                assert!(r.rejected.is_empty(), "{:?}", r.rejected);
+            }
+            // Off the track: refused.
+            let r = place(&mut s, (16, 13), (16, 13), Buildable::Building(Building::TrainStation));
+            assert!(!r.rejected.is_empty());
+        }
+        for _ in 0..6 {
+            s.tick();
+        }
+        (s.state.city.stats.train_riders, traffic_at(&s.state, 15))
+    };
+    let (none, busy) = run(false);
+    let (riders, calmer) = run(true);
+    assert_eq!(none, 0);
+    assert!(riders > 0, "riders {riders}");
+    assert!(calmer < busy, "{calmer} < {busy}");
+}
+
+#[test]
+fn a_railway_to_a_neighbour_carries_commuters_out() {
+    let mut s = Session::new(commuter_town(Road::Street));
+    s.state.city.treasury = 1_000_000_00;
+    let mut station = s.state.config.building(Building::TrainStation);
+    station.power_draw = 0;
+    s.state.config.buildings.insert(Building::TrainStation, station);
+    // Close the road to the east, then run a line off the east edge instead.
+    s.state.map.tile_mut(Pos::new(31, 5)).kind = TileKind::Empty;
+    with_neighbour(&mut s, Side::East, Neighbour { open_jobs: 3_000, ..neighbour("Eastport") });
+    place(&mut s, (0, 9), (31, 9), Buildable::Rail);
+    place(&mut s, (0, 12), (8, 12), Buildable::Road(Road::Street));
+    place(&mut s, (8, 6), (8, 11), Buildable::Road(Road::Street));
+    assert!(place(&mut s, (2, 10), (2, 10), Buildable::Building(Building::TrainStation)).rejected.is_empty());
+    for _ in 0..6 {
+        s.tick();
+    }
+    let links = region::links(&s.state)[Side::East.index()];
+    assert!(links.rail && !links.road);
+    let st = &s.state.city.stats;
+    assert!(st.train_riders > 0 && st.commuters_out > 0, "riders {} out {}", st.train_riders, st.commuters_out);
+}

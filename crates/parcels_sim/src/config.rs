@@ -29,6 +29,7 @@ pub struct Config {
     pub avenue_cost: i64,
     pub power_line_cost: i64,
     pub water_pipe_cost: i64,
+    pub rail_cost: i64,
     pub zone_cost: i64,
     pub dense_zone_cost: i64,
     /// Bridges (road on water) multiply the road cost by this.
@@ -40,6 +41,7 @@ pub struct Config {
     pub avenue_upkeep: i64,
     pub power_line_upkeep: i64,
     pub water_pipe_upkeep: i64,
+    pub rail_upkeep: i64,
     /// Overrides for building balance. Anything missing uses the built-in default.
     pub buildings: BTreeMap<Building, BuildingStats>,
 
@@ -151,6 +153,12 @@ pub struct Config {
     pub bus_depot_riders: u32,
     /// Fare per rider per month, cents.
     pub bus_fare: i64,
+    /// Share of trips that take the train when home and work are near
+    /// stations on one rail network (or the line runs to a neighbour).
+    pub train_share_percent: u16,
+    /// Riders each working station can carry.
+    pub station_riders: u32,
+    pub train_fare: i64,
 
     // ---- Eras ----
     /// Unlock the catalogue era by era. Off: everything from the start.
@@ -210,6 +218,7 @@ impl Config {
             Buildable::Road(Road::Avenue) => self.avenue_cost,
             Buildable::PowerLine => self.power_line_cost,
             Buildable::WaterPipe => self.water_pipe_cost,
+            Buildable::Rail => self.rail_cost,
             Buildable::Zone(_, Density::Low) => self.zone_cost,
             Buildable::Zone(_, Density::High) => self.dense_zone_cost,
             Buildable::Building(b) => self.building(b).cost,
@@ -266,6 +275,7 @@ impl Default for Config {
             avenue_cost: 25_00,
             power_line_cost: 5_00,
             water_pipe_cost: 5_00,
+            rail_cost: 40_00,
             zone_cost: 10_00,
             dense_zone_cost: 25_00,
             bridge_cost_multiplier: 4,
@@ -275,6 +285,7 @@ impl Default for Config {
             avenue_upkeep: 2,
             power_line_upkeep: 1,
             water_pipe_upkeep: 1,
+            rail_upkeep: 2,
             buildings: BTreeMap::new(),
 
             low_density_max_level: 3,
@@ -344,6 +355,9 @@ impl Default for Config {
             bus_share_percent: 40,
             bus_depot_riders: 600,
             bus_fare: 20,
+            train_share_percent: 50,
+            station_riders: 1_500,
+            train_fare: 30,
 
             eras: true,
             era_population: [1_500, 6_000, 15_000],

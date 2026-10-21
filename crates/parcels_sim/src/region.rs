@@ -88,15 +88,22 @@ pub struct Neighbour {
 
 /// What crosses one edge of the map.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Links {
     pub road: bool,
+    pub rail: bool,
     pub power: bool,
     pub water: bool,
 }
 
 impl Links {
     pub fn any(self) -> bool {
-        self.road || self.power || self.water
+        self.road || self.rail || self.power || self.water
+    }
+
+    /// People can get across: by road or by train.
+    pub fn people(self) -> bool {
+        self.road || self.rail
     }
 }
 
@@ -111,6 +118,7 @@ pub fn links(state: &GameState) -> [Links; 4] {
         for p in side.edge(&state.map) {
             let t = state.map.tile(p);
             l.road |= t.kind.is_road();
+            l.rail |= t.rail;
             l.power |= t.wire;
             l.water |= t.pipe;
         }
@@ -144,7 +152,7 @@ pub fn demand(state: &GameState) -> [i32; Zone::COUNT] {
     let mut d = [0i32; Zone::COUNT];
     for (side, l) in Side::ALL.into_iter().zip(links(state)) {
         let Some(n) = &state.neighbours[side.index()] else { continue };
-        if !l.road {
+        if !l.people() {
             continue;
         }
         // Homes here for their jobs, shops here for their shoppers, factories

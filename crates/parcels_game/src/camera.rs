@@ -1,8 +1,10 @@
-//! Two ways to look at the city.
+//! Ways to look at the city.
 //!
-//! * Overview: an orbit camera over the map. WASD / arrows / screen edge or
-//!   right-drag to pan, middle-drag to rotate and tilt, Q/E to rotate, wheel to
-//!   zoom toward the cursor, PageUp/PageDown to tilt.
+//! * Overview, isometric (the default): a fixed-angle orthographic view like
+//!   the classic city builders. WASD / arrows / screen edge or right-drag to
+//!   pan, Q/E to turn a quarter, wheel to zoom toward the cursor.
+//! * Overview, free (T toggles): a perspective orbit camera. Middle-drag or
+//!   Q/E to rotate, PageUp/PageDown to tilt.
 //! * Street: walk the streets at eye height. WASD to walk, mouse to look,
 //!   Shift to run, F to fly (Space/Ctrl up/down). V or Esc returns to the overview.
 //!
@@ -10,14 +12,17 @@
 
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::pbr::DistanceFog;
+use bevy::camera::ScalingMode;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use bevy_egui::input::EguiWantsInput;
 use parcels_sim::{Building, GameState, Pos, Terrain, TileKind};
 
 use crate::driver::Driver;
 use crate::settings::Settings;
 use crate::world::meshgen::TILE;
+use crate::world::scene::SKY;
 use crate::AppState;
 
 #[derive(Component)]
@@ -35,11 +40,19 @@ pub struct Orbit {
     pub yaw: f32,
     pub pitch: f32,
     pub dist: f32,
+    /// Isometric (orthographic, fixed tilt, quarter turns) rather than free.
+    pub iso: bool,
+    /// Where an isometric quarter turn is heading; `yaw` eases toward it.
+    pub iso_yaw: f32,
 }
+
+/// Tilt of the isometric view, radians above the ground.
+pub const ISO_PITCH: f32 = 0.68;
+const FOV: f32 = 50.0;
 
 impl Default for Orbit {
     fn default() -> Self {
-        Self { focus: Vec3::ZERO, yaw: 0.7, pitch: 0.85, dist: 400.0 }
+        Self { focus: Vec3::ZERO, yaw: 0.7, pitch: 0.85, dist: 400.0, iso: true, iso_yaw: FRAC_PI_4 }
     }
 }
 
@@ -87,8 +100,8 @@ fn spawn_camera(mut commands: Commands) {
         Camera3d::default(),
         MainCamera,
         CamMode::Overview,
-        Projection::Perspective(PerspectiveProjection { fov: 50f32.to_radians(), near: 0.3, far: 12_000.0, ..default() }),
-        DistanceFog { color: Color::srgb(0.52, 0.72, 0.92), ..default() },
+        Projection::Perspective(PerspectiveProjection { fov: FOV.to_radians(), near: 0.3, far: 12_000.0, ..default() }),
+        DistanceFog { color: Color::srgb(SKY[0], SKY[1], SKY[2]), ..default() },
         Transform::from_xyz(0.0, 300.0, 300.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
@@ -100,7 +113,12 @@ pub fn map_center(state: &GameState) -> Vec3 {
 fn frame_map(driver: Res<Driver>, mut orbit: ResMut<Orbit>) {
     let Some(state) = driver.state() else { return };
     let (focus, span) = (map_center(state), state.map.width.max(state.map.height) as f32 * TILE);
-    *orbit = Orbit { focus, yaw: 0.6, pitch: 0.9, dist: (span * 1.1).clamp(120.0, 2500.0) };
+    // Start fairly close in, like stepping into the town centre.
+    let dist = (span * 0.7).clamp(120.0, 2500.0);
+    *orbit = Orbit { focus, yaw: FRAC_PI_4, pitch: 0.9, dist, iso: orbit.iso, iso_yaw: FRAC_PI_4 };
+    if orbit.iso {
+        orbit.pitch = ISO_PITCH;
+    }
 }
 
 fn showcase_orbit(time: Res<Time<Real>>, driver: Option<Res<Driver>>, mut orbit: ResMut<Orbit>, mut mode: Query<&mut CamMode, With<MainCamera>>) {
@@ -113,6 +131,11 @@ fn showcase_orbit(time: Res<Time<Real>>, driver: Option<Res<Driver>>, mut orbit:
     orbit.dist = span * 0.75;
     orbit.pitch = 0.55;
     orbit.yaw += time.delta_secs() * 0.04;
+}
+
+/// The nearest isometric angle (45° plus a whole number of quarter turns).
+pub fn snap_quarter(yaw: f32) -> f32 {
+    ((yaw - FRAC_PI_4) / FRAC_PI_2).round() * FRAC_PI_2 + FRAC_PI_4
 }
 
 fn max_dist(state: &GameState) -> f32 {
@@ -153,6 +176,24 @@ fn overview_controls(
     let speed = orbit.dist * 1.1;
     let mut dir = Vec2::ZERO;
     let typing = egui.wants_any_keyboard_input();
+    if !typing && keys.just_pressed(KeyCode::KeyT) {
+        orbit.iso = !orbit.iso;
+        if orbit.iso {
+            orbit.iso_yaw = snap_quarter(orbit.yaw);
+        }
+    }
+    if orbit.iso {
+        if !typing && keys.just_pressed(KeyCode::KeyQ) {
+            orbit.iso_yaw -= FRAC_PI_2;
+        }
+        if !typing && keys.just_pressed(KeyCode::KeyE) {
+            orbit.iso_yaw += FRAC_PI_2;
+        }
+        // Ease into the quarter turn.
+        let k = 1.0 - (-dt * 10.0).exp();
+        orbit.yaw += (orbit.iso_yaw - orbit.yaw) * k;
+        orbit.pitch = ISO_PITCH;
+    }
     if !typing {
         if keys.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
             dir.y += 1.0;
@@ -166,17 +207,19 @@ fn overview_controls(
         if keys.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
             dir.x += 1.0;
         }
-        if keys.pressed(KeyCode::KeyQ) {
-            orbit.yaw -= dt * 1.4;
-        }
-        if keys.pressed(KeyCode::KeyE) {
-            orbit.yaw += dt * 1.4;
-        }
-        if keys.pressed(KeyCode::PageUp) {
-            orbit.pitch += dt * 0.8;
-        }
-        if keys.pressed(KeyCode::PageDown) {
-            orbit.pitch -= dt * 0.8;
+        if !orbit.iso {
+            if keys.pressed(KeyCode::KeyQ) {
+                orbit.yaw -= dt * 1.4;
+            }
+            if keys.pressed(KeyCode::KeyE) {
+                orbit.yaw += dt * 1.4;
+            }
+            if keys.pressed(KeyCode::PageUp) {
+                orbit.pitch += dt * 0.8;
+            }
+            if keys.pressed(KeyCode::PageDown) {
+                orbit.pitch -= dt * 0.8;
+            }
         }
     }
     let cursor = window.cursor_position();
@@ -198,7 +241,7 @@ fn overview_controls(
 
     let over_ui = egui.is_pointer_over_area();
     let px = motion.delta;
-    if buttons.pressed(MouseButton::Middle) && !over_ui {
+    if buttons.pressed(MouseButton::Middle) && !over_ui && !orbit.iso {
         let s = 0.005 * settings.mouse_sensitivity;
         orbit.yaw -= px.x * s;
         orbit.pitch += px.y * s * if settings.invert_y { -1.0 } else { 1.0 };
@@ -422,8 +465,37 @@ fn street_controls(
     walker.pos = p;
 }
 
-fn apply_camera(orbit: Res<Orbit>, walker: Res<Walker>, mut cam: Query<(&mut Transform, &CamMode), With<MainCamera>>) {
-    for (mut tf, mode) in &mut cam {
+fn apply_camera(
+    orbit: Res<Orbit>,
+    walker: Res<Walker>,
+    app_state: Res<State<AppState>>,
+    mut cam: Query<(&mut Transform, &mut Projection, &CamMode), With<MainCamera>>,
+) {
+    let iso = orbit.iso && *app_state.get() == AppState::Playing;
+    for (mut tf, mut proj, mode) in &mut cam {
+        let want_ortho = iso && *mode == CamMode::Overview;
+        match (&mut *proj, want_ortho) {
+            (Projection::Orthographic(o), true) => {
+                // Frame what a perspective camera at this distance would see.
+                let h = 2.0 * orbit.dist * (FOV.to_radians() / 2.0).tan();
+                if !matches!(o.scaling_mode, ScalingMode::FixedVertical { viewport_height } if viewport_height == h) {
+                    o.scaling_mode = ScalingMode::FixedVertical { viewport_height: h };
+                }
+            }
+            (Projection::Orthographic(_), false) => {
+                *proj = Projection::Perspective(PerspectiveProjection { fov: FOV.to_radians(), near: 0.3, far: 12_000.0, ..default() });
+            }
+            (Projection::Perspective(_), true) => {
+                let h = 2.0 * orbit.dist * (FOV.to_radians() / 2.0).tan();
+                *proj = Projection::Orthographic(OrthographicProjection {
+                    scaling_mode: ScalingMode::FixedVertical { viewport_height: h },
+                    near: -4000.0,
+                    far: 12_000.0,
+                    ..OrthographicProjection::default_3d()
+                });
+            }
+            _ => {}
+        }
         *tf = match mode {
             CamMode::Overview => Transform::from_translation(orbit.eye()).looking_at(orbit.focus, Vec3::Y),
             CamMode::Street { fly } => {

@@ -231,7 +231,7 @@ const WINDOW: [u8; 3] = [120, 140, 160];
 const CONCRETE: [u8; 3] = [168, 166, 160];
 const ASPHALT: [u8; 3] = [64, 64, 70];
 const SIDEWALK_C: [u8; 3] = [178, 176, 170];
-const GRASS: [u8; 3] = [86, 140, 74];
+const GRASS: [u8; 3] = [128, 158, 88];
 const TRUNK: [u8; 3] = [104, 76, 52];
 
 struct Ctx<'a> {
@@ -295,7 +295,10 @@ pub fn tile_center(p: Pos) -> Vec3 {
 
 fn ground_color(cx: &Ctx, p: Pos, idx: usize, t: &Tile) -> [u8; 3] {
     let n = noise(p.x as u32, p.y as u32, 1) % 12;
-    let grass = [GRASS[0] - 6 + n as u8, GRASS[1] - 6 + n as u8, GRASS[2] - 4 + (n / 2) as u8];
+    // Field-sized patches in a few tones, like a patchwork of farmland.
+    let field = [[0, 0, 0], [14, 8, -4], [-14, -10, -6], [6, -2, -10]][(noise(p.x as u32 / 6, p.y as u32 / 5, 9) % 4) as usize];
+    let tone = |c: u8, f: i32, k: u32| (c as i32 - 6 + f + k as i32).clamp(0, 255) as u8;
+    let grass = [tone(GRASS[0], field[0], n), tone(GRASS[1], field[1], n), tone(GRASS[2], field[2], n / 2)];
     let base = match t.kind {
         TileKind::Zone(z, _) => {
             if t.burning > 0 {
@@ -326,8 +329,8 @@ fn ground(cx: &mut Ctx, p: Pos, idx: usize) {
     let o = origin(p);
     if t.terrain == Terrain::Water {
         // River bed, banks against land neighbours, and the translucent surface.
-        cx.m.solid.flat(o.x, o.z, o.x + TILE, o.z + TILE, BED_Y, [74, 84, 70]);
-        let mut surface = [44, 104, 168];
+        cx.m.solid.flat(o.x, o.z, o.x + TILE, o.z + TILE, BED_Y, [92, 96, 74]);
+        let mut surface = [78, 132, 170];
         if let Some((c, a)) = overlay_tint(cx.state, cx.look.overlay, idx) {
             surface = mix(surface, c, a);
         }

@@ -86,6 +86,7 @@ pub enum Icon {
     Tower,
     Pump,
     Plane,
+    Cube,
 }
 
 impl Icon {
@@ -551,6 +552,15 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, bg: Color32) {
             k.path(&[(0.7, 0.92), (0.6, 0.5)], 0.06, INK);
             k.rect(0.2, 0.12, 0.8, 0.5, 0.12, SKY);
             k.frame(0.2, 0.12, 0.8, 0.5, 0.12, 0.05, INK);
+        }
+        Icon::Cube => {
+            let (t, l, r, b, c) = ((0.5, 0.08), (0.12, 0.3), (0.88, 0.3), (0.5, 0.92), (0.5, 0.52));
+            k.poly(&[t, r, c, l], PAPER);
+            k.poly(&[l, c, b, (0.12, 0.72)], ACCENT);
+            k.poly(&[c, r, (0.88, 0.72), b], BORDER);
+            k.path(&[t, r, (0.88, 0.72), b, (0.12, 0.72), l, t], 0.05, INK);
+            k.path(&[l, c, r], 0.04, INK);
+            k.line(c, b, 0.04, INK);
         }
         Icon::Plane => {
             k.poly(&[(0.46, 0.08), (0.54, 0.08), (0.56, 0.92), (0.44, 0.92)], STEEL);

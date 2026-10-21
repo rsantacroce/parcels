@@ -146,7 +146,7 @@ fn main() {
     .add_plugins(EguiPlugin::default())
     .init_state::<AppState>()
     .add_message::<camera::StreetRequest>()
-    .insert_resource(ClearColor(Color::srgb(0.52, 0.72, 0.92)))
+    .insert_resource(ClearColor(Color::srgb(world::scene::SKY[0], world::scene::SKY[1], world::scene::SKY[2])))
     .insert_resource(settings)
     .insert_resource(menu)
     .add_plugins((

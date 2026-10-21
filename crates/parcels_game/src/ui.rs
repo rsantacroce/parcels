@@ -672,6 +672,13 @@ fn hud(
                         hud.side = if on { None } else { Some(side) };
                     }
                 }
+                let (label, tip) = if orbit.iso { ("Iso view", "Isometric. Click for the free 3D camera (T)") } else { ("3D view", "Free camera. Click for isometric (T)") };
+                if icons::rail_button(ui, Icon::Cube, label, false).on_hover_text(tip).clicked() {
+                    orbit.iso = !orbit.iso;
+                    if orbit.iso {
+                        orbit.iso_yaw = crate::camera::snap_quarter(orbit.yaw);
+                    }
+                }
                 if icons::rail_button(ui, Icon::Walk, "Street", false).on_hover_text("Walk the streets (V)").clicked() {
                     street.write(StreetRequest(ts.selected.or(ts.hover)));
                 }
@@ -1088,7 +1095,9 @@ fn dialogs(ctx: &egui::Context, state: &GameState, driver: &mut Driver, hud: &mu
                     for (k, v) in [
                         ("WASD / arrows / edges", "Pan the map"),
                         ("Right-drag", "Pan"),
-                        ("Middle-drag, Q / E", "Rotate · tilt"),
+                        ("T", "Isometric view / free 3D camera"),
+                        ("Q / E", "Turn a quarter (isometric) or rotate"),
+                        ("Middle-drag, PgUp/PgDn", "Rotate · tilt (3D camera)"),
                         ("Wheel", "Zoom toward the cursor"),
                         ("V", "Street view: walk the city (F to fly)"),
                         ("R", "Street, press again for avenue"),

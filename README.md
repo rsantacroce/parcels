@@ -28,8 +28,9 @@ fires, seed, with a live map preview), **Load game** (named saves with date, map
 population and treasury) and **Settings**
 (volume, mouse, shadows, day/night speed, cars and people, interface size, autosave).
 
-**Controls.** Map: WASD/arrows/screen edge or right-drag to pan, middle-drag or Q/E
-to rotate, wheel to zoom, PageUp/PageDown to tilt. **V** drops you into street view:
+**Controls.** The map opens in an isometric view: WASD/arrows/screen edge or
+right-drag to pan, Q/E to turn a quarter, wheel to zoom. T switches to a free 3D
+camera (middle-drag or Q/E to rotate, PageUp/PageDown to tilt) and back. **V** drops you into street view:
 walk with WASD and the mouse, Shift to run, F to fly, V/Esc to come back; build tools
 work at the crosshair. Tools: R street (again: avenue), Z/X/C/O residential,
 commercial, industrial, office (again: dense), L power line, P pipe, G/U/J/K/N cycle

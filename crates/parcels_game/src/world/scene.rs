@@ -10,6 +10,10 @@ use crate::camera::{CamMode, MainCamera};
 use crate::driver::Driver;
 use crate::settings::Settings;
 
+/// Daytime haze: a warm parchment rather than a blue sky, so the map reads
+/// like a page in a sketchbook.
+pub const SKY: [f32; 3] = [0.89, 0.85, 0.74];
+
 #[derive(Resource)]
 pub struct WorldMaterials {
     pub solid: Handle<StandardMaterial>,
@@ -90,7 +94,7 @@ pub fn update_sky(
     let dusk = (1.0 - (elevation.abs() / 0.3)).clamp(0.0, 1.0) * (elevation > -0.2) as u8 as f32;
     sky.night = 1.0 - daylight;
 
-    let day_sky = [0.52, 0.72, 0.92];
+    let day_sky = SKY;
     let dusk_sky = [0.95, 0.55, 0.35];
     let night_sky = [0.03, 0.04, 0.09];
     let mut c = lerp3(night_sky, day_sky, daylight);
@@ -115,14 +119,14 @@ pub fn update_sky(
             Vec3::new(0.3, -0.8, 0.4).normalize()
         };
         *tf = Transform::from_translation(-dir * 500.0).looking_to(dir, Vec3::Y);
-        let warm = lerp3([1.0, 0.98, 0.94], [1.0, 0.62, 0.38], dusk);
+        let warm = lerp3([1.0, 0.95, 0.86], [1.0, 0.62, 0.38], dusk);
         let col = lerp3([0.55, 0.62, 0.9], warm, daylight);
         light.color = Color::srgb(col[0], col[1], col[2]);
         light.illuminance = 400.0 + 10_600.0 * daylight;
         light.shadow_maps_enabled = settings.shadows;
     }
     ambient.brightness = 150.0 + 850.0 * daylight;
-    ambient.color = Color::srgb(c[0] * 0.5 + 0.5, c[1] * 0.5 + 0.5, c[2] * 0.5 + 0.5);
+    ambient.color = Color::srgb(c[0] * 0.4 + 0.6, c[1] * 0.4 + 0.58, c[2] * 0.4 + 0.52);
 
     if let Some(mut m) = mats.and_then(|m| materials.get_mut(&m.lights)) {
         // Lamps glow a little by day, strongly at night.

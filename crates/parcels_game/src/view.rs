@@ -113,15 +113,15 @@ pub fn map_color(state: &GameState, overlay: Overlay, idx: usize) -> [u8; 3] {
     let t = &state.map.tiles[idx];
     let base = match t.kind {
         TileKind::Empty => match t.terrain {
-            parcels_sim::Terrain::Water => [50, 100, 175],
-            parcels_sim::Terrain::Forest => [38, 92, 44],
-            parcels_sim::Terrain::Land => [86, 140, 74],
+            parcels_sim::Terrain::Water => [82, 134, 176],
+            parcels_sim::Terrain::Forest => [72, 112, 62],
+            parcels_sim::Terrain::Land => [128, 158, 88],
         },
         TileKind::Road(_) if t.terrain == parcels_sim::Terrain::Water => [150, 140, 125],
         TileKind::Road(_) => [70, 70, 76],
         TileKind::Zone(z, _) => {
             let tint = ZONE_TINT[z.index()];
-            if t.level == 0 { mix([86, 140, 74], tint, 110) } else { shade(tint, 100 - 6 * t.level.min(6) as u32) }
+            if t.level == 0 { mix([128, 158, 88], tint, 110) } else { shade(tint, 100 - 6 * t.level.min(6) as u32) }
         }
         TileKind::Building(b) => match b.category() {
             parcels_sim::Category::Parks => [60, 150, 70],

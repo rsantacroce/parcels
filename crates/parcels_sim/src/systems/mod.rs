@@ -6,4 +6,5 @@ pub mod demand;
 pub mod economy;
 pub mod growth;
 pub mod land_value;
+pub mod status;
 pub mod utilities;

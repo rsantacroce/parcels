@@ -53,8 +53,11 @@ F10 menu, H help, ` toggles the side panel.
 Services only work while powered. The inspector tells you why a building isn't growing (no water, no school, land too
 cheap for towers…).
 
-There is no time limit or score: the game is a sandbox. Milestones are announced
-as the population grows.
+There is no time limit or score: the game is a sandbox. Residents rate nine parts
+of city life (jobs, power and water, safety, clean air, schools and health, taxes,
+traffic, neighbourhoods, finances); together they set the mayor's approval, and the
+worst one is shown as the city's top issue. Milestones are announced as the
+population grows.
 
 ## Layout
 
@@ -99,7 +102,7 @@ tag, run the workflow by hand: `gh workflow run release.yml -f tag=v0.2.0`.
   → growth (every eligible zone competes for one pool of newcomers, ranked by
   land value) → land value (parks, river, shops, utilities, minus pollution and
   traffic, spread by distance) → economy (taxes and upkeep, clamped at a debt
-  floor).
+  floor) → status (resident mood per factor; approval drifts toward the total).
 - **Determinism guards:** replay, snapshot and arrival-order tests, plus a test
   that fails if `f32`, `f64`, `HashMap`, `Instant` and similar show up in sim
   source.

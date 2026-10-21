@@ -10,6 +10,7 @@ use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 use parcels_sim::{fmt_money, Config, GameState, Map, NewGame, TerrainSettings};
 
 use crate::driver::Driver;
+use crate::icons::{self, pal, Icon};
 use crate::saves;
 use crate::settings::{Crowds, DayCycle, Settings};
 use crate::ui::Toasts;
@@ -184,27 +185,42 @@ pub fn theme(ctx: &egui::Context, settings: &Settings) {
         return;
     }
     ctx.all_styles_mut(|style| {
-        style.visuals = egui::Visuals::dark();
+        style.visuals = egui::Visuals::light();
         let v = &mut style.visuals;
-        v.window_corner_radius = 10.into();
-        v.menu_corner_radius = 8.into();
-        v.window_fill = egui::Color32::from_rgb(24, 28, 37);
-        v.panel_fill = egui::Color32::from_rgb(20, 24, 31);
-        v.extreme_bg_color = egui::Color32::from_rgb(14, 17, 22);
-        v.selection.bg_fill = egui::Color32::from_rgb(46, 130, 120);
-        v.hyperlink_color = egui::Color32::from_rgb(110, 200, 190);
-        for w in [&mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
-            w.corner_radius = 6.into();
+        v.override_text_color = Some(pal::INK);
+        v.window_corner_radius = 14.into();
+        v.menu_corner_radius = 10.into();
+        v.window_fill = pal::PAPER;
+        v.window_stroke = egui::Stroke::new(2.0, pal::BORDER);
+        v.panel_fill = pal::PAPER;
+        v.faint_bg_color = pal::PAPER_DIM;
+        v.extreme_bg_color = egui::Color32::WHITE;
+        v.code_bg_color = pal::PAPER_DIM;
+        v.selection.bg_fill = pal::ACCENT;
+        v.selection.stroke = egui::Stroke::new(1.5, pal::INK);
+        v.hyperlink_color = pal::NAVY;
+        v.slider_trailing_fill = true;
+        for w in [&mut v.widgets.noninteractive, &mut v.widgets.inactive, &mut v.widgets.hovered, &mut v.widgets.active, &mut v.widgets.open] {
+            w.corner_radius = 8.into();
+            w.fg_stroke.color = pal::INK;
         }
-        v.widgets.inactive.weak_bg_fill = egui::Color32::from_rgb(38, 44, 56);
-        v.widgets.hovered.weak_bg_fill = egui::Color32::from_rgb(52, 62, 78);
+        v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, pal::PAPER_DEEP);
+        v.widgets.inactive.weak_bg_fill = pal::PAPER_DIM;
+        v.widgets.inactive.bg_fill = pal::PAPER_DEEP;
+        v.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, pal::PAPER_DEEP);
+        v.widgets.hovered.weak_bg_fill = pal::ACCENT_SOFT;
+        v.widgets.hovered.bg_fill = pal::ACCENT_SOFT;
+        v.widgets.hovered.bg_stroke = egui::Stroke::new(1.5, pal::BORDER);
+        v.widgets.active.weak_bg_fill = pal::ACCENT;
+        v.widgets.active.bg_fill = pal::ACCENT;
+        v.widgets.open.weak_bg_fill = pal::ACCENT_SOFT;
         style.spacing.button_padding = MARK;
         style.spacing.item_spacing = egui::vec2(8.0, 6.0);
         for (ts, f) in style.text_styles.iter_mut() {
             f.size = match ts {
                 egui::TextStyle::Heading => 20.0,
-                egui::TextStyle::Body | egui::TextStyle::Button => 14.0,
-                egui::TextStyle::Small => 11.5,
+                egui::TextStyle::Body | egui::TextStyle::Button => 14.5,
+                egui::TextStyle::Small => 12.0,
                 egui::TextStyle::Monospace => 13.5,
                 _ => f.size,
             };
@@ -288,7 +304,10 @@ pub fn load_list(ui: &mut egui::Ui, confirm_delete: &mut Option<String>, mut on_
                 ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
-                        ui.label(egui::RichText::new(e.title()).strong().size(15.0));
+                        ui.horizontal(|ui| {
+                            icons::inline(ui, Icon::City, 20.0);
+                            ui.label(egui::RichText::new(e.title()).strong().size(15.0));
+                        });
                         match &e.meta {
                             Some(meta) => {
                                 ui.label(
@@ -309,7 +328,7 @@ pub fn load_list(ui: &mut egui::Ui, confirm_delete: &mut Option<String>, mut on_
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if confirm_delete.as_deref() == Some(&e.slug) {
-                            if ui.button(egui::RichText::new("Really delete").color(egui::Color32::LIGHT_RED)).clicked() {
+                            if ui.button(egui::RichText::new("Really delete").color(pal::BAD)).clicked() {
                                 let _ = saves::delete(&e.slug);
                                 *confirm_delete = None;
                             }
@@ -320,7 +339,7 @@ pub fn load_list(ui: &mut egui::Ui, confirm_delete: &mut Option<String>, mut on_
                             if ui.button("🗑").on_hover_text("Delete").clicked() {
                                 *confirm_delete = Some(e.slug.clone());
                             }
-                            if ui.button(egui::RichText::new("▶ Load").strong()).clicked() {
+                            if icons::menu_button(ui, Icon::Play, "Load", 92.0, 32.0, false).clicked() {
                                 on_load(&e.slug);
                             }
                         }
@@ -442,43 +461,51 @@ fn menu_ui(
 
     // Title column.
     egui::Area::new("title".into()).anchor(egui::Align2::LEFT_TOP, egui::vec2(48.0, 48.0)).show(&ctx, |ui| {
-        egui::Frame::new().fill(egui::Color32::from_rgba_unmultiplied(14, 18, 26, 215)).corner_radius(14).inner_margin(26).show(ui, |ui| {
-            ui.set_width(270.0);
-            ui.label(egui::RichText::new("PARCELS").size(48.0).strong().color(egui::Color32::from_rgb(240, 236, 220)));
-            ui.label(egui::RichText::new("Lay the streets, zone the land,\nand watch your city grow.").italics().color(egui::Color32::from_gray(190)));
-            ui.add_space(18.0);
-            let big = |ui: &mut egui::Ui, t: &str, on: bool| {
-                ui.add_sized([270.0, 40.0], egui::Button::new(egui::RichText::new(t).size(17.0)).selected(on)).clicked()
-            };
+        egui::Frame::new()
+            .fill(pal::PAPER)
+            .stroke(egui::Stroke::new(2.5, pal::BORDER))
+            .corner_radius(18)
+            .inner_margin(24)
+            .shadow(egui::Shadow { offset: [0, 4], blur: 16, spread: 0, color: egui::Color32::from_black_alpha(50) })
+            .show(ui, |ui| {
+            ui.set_width(280.0);
+            ui.horizontal(|ui| {
+                icons::inline(ui, Icon::City, 44.0);
+                ui.label(egui::RichText::new("PARCELS").size(44.0).strong().color(pal::INK));
+            });
+            ui.label(egui::RichText::new("Lay the streets, zone the land,\nand watch your city grow.").italics().color(pal::INK_SOFT));
+            ui.add_space(16.0);
+            ui.spacing_mut().item_spacing.y = 8.0;
+            let big = |ui: &mut egui::Ui, icon: Icon, t: &str, on: bool| icons::menu_button(ui, icon, t, 280.0, 44.0, on).clicked();
             if let Some(e) = &latest {
-                if big(ui, &format!("▶  Continue  ·  {}", e.title()), false) {
+                if big(ui, Icon::Play, &format!("Continue · {}", e.title()), false) {
                     go = Some(start_load(&e.slug));
                 }
             }
             let screen = m.screen;
-            if big(ui, "✨  New game", screen == Screen::NewGame) {
+            if big(ui, Icon::Sparkle, "New city", screen == Screen::NewGame) {
                 m.screen = Screen::NewGame;
             }
-            if big(ui, "📂  Load game", screen == Screen::Load) {
+            if big(ui, Icon::Folder, "Load city", screen == Screen::Load) {
                 m.screen = Screen::Load;
             }
-            if big(ui, "⚙  Settings", screen == Screen::Settings) {
+            if big(ui, Icon::Gear, "Settings", screen == Screen::Settings) {
                 m.screen = Screen::Settings;
             }
-            if big(ui, "✖  Quit", false) {
+            if big(ui, Icon::Quit, "Quit", false) {
                 exit.write(AppExit::Success);
             }
-            ui.add_space(10.0);
+            ui.add_space(8.0);
             if let Some(e) = &m.error {
-                ui.colored_label(egui::Color32::LIGHT_RED, e);
+                ui.colored_label(pal::BAD, e);
             }
             if driver.is_none() {
-                ui.label(egui::RichText::new("Growing a city to look at…").small().weak());
+                ui.label(egui::RichText::new("Growing a city to look at…").small().color(pal::INK_SOFT));
             }
         });
     });
     egui::Area::new("version".into()).anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-12.0, -8.0)).interactable(false).show(&ctx, |ui| {
-        ui.label(egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).small().weak());
+        ui.label(egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).small().color(egui::Color32::WHITE));
     });
 
     // The open screen, as a card to the right of the buttons.
@@ -492,7 +519,7 @@ fn menu_ui(
     match m.screen {
         Screen::Title => {}
         Screen::NewGame => {
-            card("New game").show(&ctx, |ui| {
+            card("New city").show(&ctx, |ui| {
                 egui::Grid::new("who").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
                     ui.label("City");
                     ui.text_edit_singleline(&mut m.setup.city_name);
@@ -520,15 +547,15 @@ fn menu_ui(
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.add_sized([180.0, 36.0], egui::Button::new(egui::RichText::new("Start building").strong().size(16.0))).clicked() {
+                    if icons::menu_button(ui, Icon::Sparkle, "Found the city", 200.0, 40.0, true).clicked() {
                         go = Some(Ok(start_new(&m)));
                     }
-                    ui.label(egui::RichText::new(format!("Starting with {}", fmt_money(m.setup.money * 100).trim_end_matches(".00"))).weak());
+                    ui.label(egui::RichText::new(format!("Starting with {}", fmt_money(m.setup.money * 100).trim_end_matches(".00"))).color(pal::INK_SOFT));
                 });
             });
         }
         Screen::Load => {
-            card("Load game").show(&ctx, |ui| {
+            card("Load city").show(&ctx, |ui| {
                 let mut chosen = None;
                 let mut confirm = m.confirm_delete.take();
                 load_list(ui, &mut confirm, |slug| chosen = Some(slug.to_string()));

@@ -57,7 +57,7 @@ impl GameState {
             name: setup.city_name.clone(),
             treasury: config.starting_treasury,
             tax_rate: config.default_tax_rate,
-            stats: CityStats::default(),
+            stats: CityStats { approval: 500, ..CityStats::default() },
         };
         let mut state = Self { tick: 0, seed: setup.seed, config, map, city };
         // Settle derived values so the very first frame shows sensible numbers.
@@ -85,7 +85,7 @@ impl GameState {
 
     /// Advance one tick, applying `commands` (which must all be stamped with this
     /// tick). The pipeline order is fixed: commands, utilities, demand, growth,
-    /// land value, economy.
+    /// land value, economy, status.
     pub fn step(&mut self, commands: &[Command]) -> TickReport {
         let mut report = TickReport { tick: self.tick, ..Default::default() };
 
@@ -95,6 +95,7 @@ impl GameState {
         systems::growth::run(self, &mut report);
         systems::land_value::run(self);
         systems::economy::run(self);
+        systems::status::run(self);
 
         self.tick += 1;
         report.month_ended = self.tick % self.config.ticks_per_month as u64 == 0;

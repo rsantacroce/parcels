@@ -19,7 +19,7 @@ pub mod state;
 pub mod systems;
 
 pub use catalog::{Building, BuildingStats, Category, Service};
-pub use city::{City, CityStats, Utility, UtilityLedger};
+pub use city::{mood_word, City, CityStats, Factor, Utility, UtilityLedger};
 pub use command::{Area, Command, CommandKind, Rejection};
 pub use config::Config;
 pub use map::{Buildable, Density, Map, Pos, Rect, Road, Terrain, TerrainSettings, Tile, TileKind, Zone};

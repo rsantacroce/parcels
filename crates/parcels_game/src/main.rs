@@ -6,10 +6,12 @@
 //!   parcels --verify-replay saves/replay.ron  (headless determinism check)
 //!   common: --name Rob --seed 42
 //!   dev:    --shot out.png [--street] [--hour 21] [--wait 4] [--screen new|load|settings]
+//!           [--hud city,budget,zones,views,paused]
 
 mod audio;
 mod camera;
 mod driver;
+mod icons;
 mod menu;
 mod saves;
 mod settings;
@@ -157,6 +159,9 @@ fn main() {
         audio::AudioPlugin,
     ));
     app.init_resource::<view::View>();
+    if let Some(h) = arg(&args, "--hud") {
+        app.insert_resource(ui::DevHud(h));
+    }
     if let Some(path) = arg(&args, "--shot") {
         app.insert_resource(DevShot {
             path,

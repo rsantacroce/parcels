@@ -41,6 +41,10 @@ fn main() {
                 st.water.supply, st.water.demand, st.water.unserved,
                 st.land_value_total / s.state.map.len() as u64, st.demand
             );
+            println!(
+                "        approval {}% ({}) jobless {}% mood {:?} issue {:?}",
+                st.approval_percent(), parcels_sim::mood_word(st.approval_percent()), st.jobless_percent, st.mood, st.top_issue()
+            );
         }
     }
     diag(&s.state);

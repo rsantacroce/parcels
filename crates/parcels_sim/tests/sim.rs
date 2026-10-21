@@ -233,3 +233,25 @@ fn unprotected_buildings_burn_and_fire_stations_prevent_it() {
     assert!(run(false) > 0);
     assert_eq!(run(true), 0);
 }
+
+#[test]
+fn high_taxes_cost_approval_and_show_as_the_top_issue() {
+    let run = |rate: u8| {
+        let mut s = Session::new(small_city(5));
+        dry(&mut s.state);
+        s.submit(CommandKind::SetTaxRate { rate });
+        for _ in 0..400 {
+            s.tick();
+        }
+        s.state.city.stats
+    };
+    let fair = run(s_neutral());
+    let harsh = run(20);
+    assert!(harsh.approval < fair.approval, "{} vs {}", harsh.approval, fair.approval);
+    assert_eq!(harsh.top_issue(), Some(Factor::Taxes));
+    assert_eq!(fair.top_issue(), None);
+}
+
+fn s_neutral() -> u8 {
+    Config::default().neutral_tax_rate
+}

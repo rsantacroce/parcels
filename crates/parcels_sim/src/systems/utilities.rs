@@ -5,6 +5,7 @@
 
 use crate::city::{Utility, UtilityLedger};
 use crate::map::{Terrain, Tile, TileKind};
+use crate::region::Side;
 use crate::state::GameState;
 
 pub fn run(state: &mut GameState) {
@@ -17,6 +18,20 @@ pub fn run(state: &mut GameState) {
     // Power first: pumps need power to pump water.
     settle(state, Utility::Power);
     settle(state, Utility::Water);
+}
+
+/// What each neighbour can sell, and still needs, of a utility.
+fn trade_room(state: &GameState, u: Utility) -> ([u32; 4], [u32; 4]) {
+    let (mut spare, mut short) = ([0u32; 4], [0u32; 4]);
+    for (i, n) in state.neighbours.iter().enumerate() {
+        if let Some(n) = n {
+            (spare[i], short[i]) = match u {
+                Utility::Power => (n.power_spare, n.power_short),
+                Utility::Water => (n.water_spare, n.water_short),
+            };
+        }
+    }
+    (spare, short)
 }
 
 fn conducts(t: &Tile, u: Utility) -> bool {
@@ -69,6 +84,7 @@ fn ledger(state: &mut GameState, u: Utility) -> &mut UtilityLedger {
 }
 
 fn settle(state: &mut GameState, u: Utility) {
+    let (mut spare, mut short) = trade_room(state, u);
     let n = state.map.len();
     let mut visited = vec![false; n];
     let mut stack = Vec::new();
@@ -90,16 +106,49 @@ fn settle(state: &mut GameState, u: Utility) {
         }
         // Serve in row-major order regardless of traversal order.
         members.sort_unstable();
-        settle_network(state, u, &members);
+        settle_network(state, u, &members, &mut spare, &mut short);
     }
 }
 
-fn settle_network(state: &mut GameState, u: Utility, members: &[usize]) {
-    let supply_total: u32 = members.iter().map(|&i| supply(state, i, u)).sum();
+fn settle_network(state: &mut GameState, u: Utility, members: &[usize], spare: &mut [u32; 4], short: &mut [u32; 4]) {
+    let local: u32 = members.iter().map(|&i| supply(state, i, u)).sum();
     let demand_total: u32 = members.iter().map(|&i| need(state, &state.map.tiles[i], u)).sum();
+
+    // A line or pipe on a map edge with a neighbour beyond it can trade:
+    // buy what this network lacks, sell what it has over.
+    let mut sides = [false; 4];
+    for &i in members {
+        let t = &state.map.tiles[i];
+        let crosses = match u {
+            Utility::Power => t.wire,
+            Utility::Water => t.pipe,
+        };
+        if crosses {
+            for s in Side::of(&state.map, state.map.pos(i)) {
+                sides[s.index()] |= state.neighbours[s.index()].is_some();
+            }
+        }
+    }
+    let (mut imported, mut exported) = (0u32, 0u32);
+    for s in 0..4 {
+        if !sides[s] {
+            continue;
+        }
+        let take = spare[s].min(demand_total.saturating_sub(local + imported));
+        spare[s] -= take;
+        imported += take;
+        let give = short[s].min(local.saturating_sub(demand_total + exported));
+        short[s] -= give;
+        exported += give;
+    }
+    let supply_total = local + imported;
     let l = ledger(state, u);
     l.supply += supply_total;
     l.demand += demand_total;
+    l.imported += imported;
+    l.exported += exported;
+    // Sold supply is spoken for.
+    let supply_total = supply_total - exported;
 
     // Hand out the supply tile by tile. Water producers go first so a short
     // network keeps its water running.

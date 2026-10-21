@@ -451,3 +451,93 @@ fn eras_unlock_by_population_or_by_year() {
     }
     assert_eq!(eras, vec![2, 3, 4]);
 }
+
+fn neighbour(name: &str) -> Neighbour {
+    Neighbour { name: name.into(), ..Default::default() }
+}
+
+fn with_neighbour(s: &mut Session, side: Side, n: Neighbour) {
+    let mut all: [Option<Neighbour>; 4] = Default::default();
+    all[side.index()] = Some(n);
+    s.submit(CommandKind::SetNeighbours { neighbours: all });
+    s.tick();
+}
+
+#[test]
+fn power_lines_across_the_border_buy_and_sell_power() {
+    // Homes wired to the east edge, no plant of their own.
+    let mut s = Session::new(small_city(13));
+    dry(&mut s.state);
+    s.state.city.treasury = 100_000_00;
+    with_neighbour(&mut s, Side::East, Neighbour { power_spare: 500, ..neighbour("Eastport") });
+    place(&mut s, (20, 5), (31, 5), Buildable::Road(Road::Street));
+    place(&mut s, (20, 4), (25, 4), Buildable::Zone(Zone::Residential, Density::Low));
+    s.tick();
+    assert!(!s.state.map.tile(Pos::new(21, 4)).powered, "no line across yet");
+    place(&mut s, (20, 5), (31, 5), Buildable::PowerLine);
+    s.tick();
+    assert!(s.state.map.tile(Pos::new(21, 4)).powered);
+    assert!(s.state.city.stats.power.imported > 0);
+    assert!(s.state.city.stats.trade < 0, "buying costs money");
+
+    // A city with power to spare sells it to a short neighbour.
+    let mut s = Session::new(small_city(14));
+    dry(&mut s.state);
+    s.state.city.treasury = 100_000_00;
+    with_neighbour(&mut s, Side::West, Neighbour { power_short: 30, ..neighbour("Westfield") });
+    place(&mut s, (3, 3), (3, 3), Buildable::Building(Building::CoalPlant));
+    place(&mut s, (0, 5), (5, 5), Buildable::PowerLine);
+    s.tick();
+    assert_eq!(s.state.city.stats.power.exported, 30);
+    assert!(s.state.city.stats.trade > 0);
+}
+
+#[test]
+fn a_road_across_the_border_brings_jobs_and_demand() {
+    let mut s = Session::new(commuter_town(Road::Street));
+    // No local jobs: turn the factories back into grass.
+    for x in 24..30 {
+        for y in [3, 4, 6, 7] {
+            let t = s.state.map.tile_mut(Pos::new(x, y));
+            t.kind = TileKind::Empty;
+            t.level = 0;
+        }
+    }
+    s.tick();
+    assert!(s.state.city.stats.stranded > 0, "nowhere to work");
+    let r_before = s.state.city.stats.raw_demand[0];
+
+    with_neighbour(&mut s, Side::East, Neighbour { open_jobs: 2_000, population: 5_000, ..neighbour("Eastport") });
+    for _ in 0..5 {
+        s.tick();
+    }
+    let st = &s.state.city.stats;
+    assert_eq!(st.stranded, 0);
+    assert!(st.commuters_out > 0);
+    assert!(traffic_at(&s.state, 31) > 0, "they drive out over the edge");
+    assert!(st.raw_demand[0] > r_before, "people want to live near work");
+
+    // Without the road the neighbour is just a name on the map.
+    let mut t = Session::new(commuter_town(Road::Street));
+    t.state.map.tile_mut(Pos::new(31, 5)).kind = TileKind::Empty;
+    with_neighbour(&mut t, Side::East, Neighbour { open_jobs: 2_000, ..neighbour("Eastport") });
+    assert!(!region::links(&t.state)[Side::East.index()].road);
+    assert_eq!(t.state.city.stats.commuters_out, 0);
+}
+
+#[test]
+fn neighbours_drive_in_to_fill_open_jobs() {
+    let mut s = Session::new(commuter_town(Road::Street));
+    // Only factories, no homes.
+    for x in 0..6 {
+        for y in [3, 4, 6, 7] {
+            s.state.map.tile_mut(Pos::new(x, y)).kind = TileKind::Empty;
+        }
+    }
+    with_neighbour(&mut s, Side::West, Neighbour { job_seekers: 400, ..neighbour("Westfield") });
+    for _ in 0..5 {
+        s.tick();
+    }
+    assert!(s.state.city.stats.commuters_in > 0);
+    assert!(traffic_at(&s.state, 10) > 0);
+}

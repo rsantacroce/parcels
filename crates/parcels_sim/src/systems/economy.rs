@@ -1,4 +1,4 @@
-//! Stage 7: taxes in, upkeep out, treasury clamped.
+//! Stage 7: taxes, fares and trade in, upkeep out, treasury clamped.
 
 use crate::map::{Road, Terrain, TileKind, Zone};
 use crate::state::GameState;
@@ -41,12 +41,18 @@ pub fn run(state: &mut GameState) {
     let city = &mut state.city;
     // Bus fares count as income alongside taxes.
     let taxes = taxable * city.tax_rate as i64 / divisor + city.stats.fares;
+    // Power and water traded with neighbours.
+    let s = &mut city.stats;
+    let bought = (s.power.imported + s.water.imported) as i64;
+    let sold = (s.power.exported + s.water.exported) as i64;
+    s.trade = (sold * state.config.export_price - bought * state.config.import_price) / 100;
+    let trade = s.trade;
     city.stats.taxes = taxes;
     city.stats.upkeep = upkeep;
     city.stats.land_value_total = lv_total;
     // Never below the debt floor: you can't exploit bankruptcy into infinite
     // negative money, and building already requires cash in hand.
-    city.treasury = (city.treasury + taxes - upkeep).max(floor);
+    city.treasury = (city.treasury + taxes + trade - upkeep).max(floor);
 }
 
 /// Total land value, for the first frame before any tick has run.

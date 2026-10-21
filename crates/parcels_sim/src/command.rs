@@ -35,6 +35,9 @@ pub enum CommandKind {
     Place { area: Area, what: Buildable },
     Bulldoze { area: Area },
     SetTaxRate { rate: u8 },
+    /// The latest snapshot of the cities beyond each edge (N, E, S, W), sent
+    /// when the player opens a city in a region.
+    SetNeighbours { neighbours: [Option<crate::region::Neighbour>; 4] },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

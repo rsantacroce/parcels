@@ -160,6 +160,15 @@ pub struct Config {
     /// …or the year (counting from 1) after which they arrive anyway.
     pub era_years: [u16; 3],
 
+    // ---- Region ----
+    /// Share of a road-linked neighbour's jobs, shoppers and job seekers that
+    /// shows up as demand here, percent.
+    pub region_demand_percent: i32,
+    /// Price of power or water bought from a neighbour, cents per 100 units per tick.
+    pub import_price: i64,
+    /// Paid by a neighbour for spare power or water, cents per 100 units per tick.
+    pub export_price: i64,
+
     // ---- Mayor ----
     /// Months between elections.
     pub election_interval_months: u16,
@@ -339,6 +348,10 @@ impl Default for Config {
             eras: true,
             era_population: [1_500, 6_000, 15_000],
             era_years: [3, 6, 10],
+
+            region_demand_percent: 25,
+            import_price: 150,
+            export_price: 80,
 
             election_interval_months: 48,
             reelection_percent: 50,

@@ -34,7 +34,15 @@ pub fn run(state: &mut GameState) {
     let avg = |v: i64| if people > 0 { v / people } else { 0 };
 
     let jobs = (s.commercial_jobs + s.industrial_jobs + s.office_jobs + s.public_jobs) as i64;
-    let workers_wanted = jobs * c.workers_per_100_jobs as i64 / 100;
+    // Open jobs in neighbouring cities count, if a road reaches them.
+    let abroad: i64 = crate::region::links(state)
+        .iter()
+        .zip(&state.neighbours)
+        .filter(|(l, _)| l.road)
+        .filter_map(|(_, n)| n.as_ref())
+        .map(|n| n.open_jobs as i64)
+        .sum();
+    let workers_wanted = jobs * c.workers_per_100_jobs as i64 / 100 + abroad;
     // People with no road to any job are out of work too.
     let out = (pop - workers_wanted).max(s.stranded as i64);
     let jobless = if pop > 0 { (out.max(0) * 100 / pop).min(100) } else { 0 };

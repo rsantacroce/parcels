@@ -9,10 +9,15 @@ pub enum Utility {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct UtilityLedger {
+    /// Includes anything bought from neighbours.
     pub supply: u32,
     pub demand: u32,
     pub unserved: u32,
+    /// Bought from / sold to neighbouring cities this tick.
+    pub imported: u32,
+    pub exported: u32,
 }
 
 /// Derived numbers, refreshed every tick. Part of the state (and its hash) so a
@@ -47,6 +52,11 @@ pub struct CityStats {
     pub commute_minutes: u16,
     /// Bus fares per tick, cents.
     pub fares: i64,
+    /// Residents working in a neighbouring city, and neighbours working here.
+    pub commuters_out: u32,
+    pub commuters_in: u32,
+    /// Power and water trade with neighbours per tick, cents (sales − purchases).
+    pub trade: i64,
     /// Residents without a job, percent.
     pub jobless_percent: u8,
     /// What residents think of each part of city life, roughly -20..=+10 each.

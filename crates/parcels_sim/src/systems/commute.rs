@@ -12,6 +12,7 @@ use std::collections::BinaryHeap;
 
 use crate::catalog::{Building, Service};
 use crate::map::{Road, TileKind, Zone};
+use crate::region::{self, Side};
 use crate::state::GameState;
 
 const NONE: u32 = u32::MAX;
@@ -124,6 +125,22 @@ pub fn run(state: &mut GameState) {
         }
     }
 
+    // Open jobs in a neighbouring city wait at the roads that cross into it.
+    let links = region::links(state);
+    let edge_roads = |side: Side| -> Vec<usize> {
+        side.edge(map).into_iter().map(|p| map.idx(p)).filter(|&j| map.tiles[j].kind.is_road()).collect()
+    };
+    let mut abroad = vec![0u32; n];
+    for side in Side::ALL {
+        let Some(nb) = &state.neighbours[side.index()] else { continue };
+        if links[side.index()].road {
+            for (j, v) in spread(&edge_roads(side), share(nb.open_jobs)) {
+                abroad[j] += v;
+                open[j] += v;
+            }
+        }
+    }
+
     // Homes, with the trips they still have to place.
     let mut homes: Vec<(usize, u32)> = Vec::new();
     let mut stranded = 0u32;
@@ -142,7 +159,7 @@ pub fn run(state: &mut GameState) {
     let buses = BusNetwork::new(state);
     let mut left = buses.capacity.clone();
     let mut flow = vec![0u32; n];
-    let (mut commuters, mut riders, mut minutes) = (0u32, 0u32, 0u64);
+    let (mut commuters, mut riders, mut minutes, mut out) = (0u32, 0u32, 0u64, 0u32);
     let mut reached = vec![false; homes.len()];
     for _ in 0..ROUNDS {
         if homes.iter().all(|h| h.1 == 0) {
@@ -176,6 +193,10 @@ pub fn run(state: &mut GameState) {
             if trips == 0 {
                 continue;
             }
+            // Local jobs at this road fill before the ones across the border.
+            let gone = trips.saturating_sub(open[dest] - abroad[dest]);
+            abroad[dest] -= gone;
+            out += gone;
             open[dest] -= trips;
             homes[h].1 -= trips;
             commuters += trips;
@@ -196,15 +217,30 @@ pub fn run(state: &mut GameState) {
         if commuters == before {
             break;
         }
-        // Push this round's trips on toward work, farthest roads first.
-        let mut order: Vec<usize> = (0..n).filter(|&i| round[i] > 0 || dist[i] != NONE).collect();
-        order.sort_unstable_by_key(|&i| Reverse((dist[i], i)));
-        for &i in &order {
-            if parent[i] != NONE {
-                round[parent[i] as usize] += round[i];
+        push(round, &dist, &parent, &mut flow);
+    }
+
+    // Job seekers from neighbouring cities drive in to the jobs still open.
+    let mut local: Vec<u32> = (0..n).map(|i| open[i] - abroad[i]).collect();
+    let mut inbound = 0u32;
+    if local.iter().any(|&v| v > 0) {
+        let (dist, parent, root) = routes(state, &local);
+        let mut round = vec![0u32; n];
+        for side in Side::ALL {
+            let Some(nb) = &state.neighbours[side.index()] else { continue };
+            if !links[side.index()].road {
+                continue;
             }
-            flow[i] += round[i];
+            let gates: Vec<usize> = edge_roads(side).into_iter().filter(|&j| dist[j] != NONE).collect();
+            for (j, v) in spread(&gates, share(nb.job_seekers)) {
+                let dest = root[j] as usize;
+                let trips = v.min(local[dest]);
+                local[dest] -= trips;
+                round[j] += trips;
+                inbound += trips;
+            }
         }
+        push(round, &dist, &parent, &mut flow);
     }
     // Homes on roads that lead to no job at all.
     for (h, &(i, _)) in homes.iter().enumerate() {
@@ -231,6 +267,31 @@ pub fn run(state: &mut GameState) {
     s.stranded = stranded;
     s.commute_minutes = if commuters > 0 { (minutes / commuters as u64).min(u16::MAX as u64) as u16 } else { 0 };
     s.fares = fares;
+    s.commuters_out = out;
+    s.commuters_in = inbound;
+}
+
+/// Split `total` across `tiles`, the first taking the remainder.
+fn spread(tiles: &[usize], total: u32) -> Vec<(usize, u32)> {
+    if tiles.is_empty() {
+        return Vec::new();
+    }
+    let each = total / tiles.len() as u32;
+    let extra = total % tiles.len() as u32;
+    tiles.iter().enumerate().map(|(k, &j)| (j, each + if k == 0 { extra } else { 0 })).collect()
+}
+
+/// Push trips that joined the roads on toward work along the route tree,
+/// farthest roads first, adding them to `flow`.
+fn push(mut round: Vec<u32>, dist: &[u32], parent: &[u32], flow: &mut [u32]) {
+    let mut order: Vec<usize> = (0..round.len()).filter(|&i| dist[i] != NONE).collect();
+    order.sort_unstable_by_key(|&i| Reverse((dist[i], i)));
+    for &i in &order {
+        if parent[i] != NONE {
+            round[parent[i] as usize] += round[i];
+        }
+        flow[i] += round[i];
+    }
 }
 
 /// Cheapest route from every road to a road with open jobs: distance, next

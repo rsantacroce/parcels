@@ -202,6 +202,9 @@ fn apply_one(state: &mut GameState, cmd: &Command) -> Result<(), Rejection> {
             }
             state.city.tax_rate = *rate;
         }
+        CommandKind::SetNeighbours { neighbours } => {
+            state.neighbours = neighbours.clone();
+        }
     }
     Ok(())
 }

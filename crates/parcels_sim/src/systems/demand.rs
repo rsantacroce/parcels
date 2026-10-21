@@ -47,6 +47,9 @@ pub fn run(state: &mut GameState) {
         base[2] + bonus[2] + tp * 100 / c.residents_per_100_industrial_jobs.max(1) - ti,
         base[3] + bonus[3] + tp * 100 / c.residents_per_100_office_jobs.max(1) - to,
     ];
+    // Neighbours reachable by road add their pull.
+    let regional = crate::region::demand(state);
+    let raw = [0, 1, 2, 3].map(|z| raw[z] + regional[z]);
     // Normalise against current size so a tiny town and a big one read alike.
     let scale = [tp + 100, tc + 50, ti + 50, to + 50];
     let mut norm = [0i32; Zone::COUNT];

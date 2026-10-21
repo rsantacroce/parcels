@@ -16,6 +16,10 @@ pub struct GameState {
     pub config: Config,
     pub map: Map,
     pub city: City,
+    /// Cities beyond the north, east, south and west edges, if this city is
+    /// part of a region.
+    #[serde(default)]
+    pub neighbours: [Option<crate::region::Neighbour>; 4],
 }
 
 /// What the caller learns from a tick: useful for UI feedback and sound.
@@ -69,7 +73,7 @@ impl GameState {
             mayor: Mayor::default(),
             era: if config.eras { crate::era::FIRST } else { crate::era::LAST },
         };
-        let mut state = Self { tick: 0, seed: setup.seed, config, map, city };
+        let mut state = Self { tick: 0, seed: setup.seed, config, map, city, neighbours: Default::default() };
         // Settle derived values so the very first frame shows sensible numbers.
         systems::land_value::run(&mut state);
         systems::economy::refresh_land_value(&mut state);
